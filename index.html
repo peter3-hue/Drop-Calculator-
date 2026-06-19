@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Drop Calculator — Multi-Caliber</title>
-<meta name="description" content="Offline rifle ballistics drop calculator — RK4 point-mass solver, exact G1/G7 drag, 19 cartridges, full dope card, wind drift and atmospheric corrections. Validated to ~0.2 in / 0.01 MOA.">
+<meta name="description" content="Offline rifle & pistol ballistics drop calculator — RK4 point-mass solver, exact G1/G7 drag, 85+ cartridges (rimfire to .50 BMG), full dope card, wind drift and atmospheric corrections. Validated to ~0.2 in / 0.01 MOA.">
 <meta property="og:title" content="Drop Calculator — Multi-Caliber">
 <meta property="og:description" content="Offline rifle ballistics: RK4 solver, G1/G7 drag, dope card, wind &amp; atmosphere. Always verify with live fire.">
 <meta property="og:type" content="website">
@@ -381,6 +381,7 @@ const CALS={
       a:{name:"CCI Mini-Mag 40gr CPRN — 1235 fps", mv:1235, bc:0.130, model:"G1", wt:40},
       b:{name:"CCI Standard Velocity 40gr — 1070 fps", mv:1070, bc:0.125, model:"G1", wt:40},
       c:{name:"CCI Stinger 32gr CPHP — 1640 fps", mv:1640, bc:0.084, model:"G1", wt:32},
+      d:{name:"CCI Velocitor 40gr CPHP — 1435 fps", mv:1435, bc:0.125, model:"G1", wt:40},
     }},
 
   /* ---- Varmint ---- */
@@ -491,6 +492,164 @@ const CALS={
       a:{name:"Hornady LEVERevolution 325gr FTX — 2000 fps", mv:2000, bc:0.230, model:"G1", wt:325},
       b:{name:"Federal Power-Shok 300gr JSP — 1850 fps", mv:1850, bc:0.289, model:"G1", wt:300},
     }},
+  marlin444:{name:"444 Marlin", group:"Straight-Wall", sight:1.8, zeros:[50,100,150,200], defZero:100, maxYd:350, chartMax:300, defYd:150,
+    loads:{a:{name:"Hornady LEVERevolution 265gr FTX — 2325 fps", mv:2325, bc:0.225, model:"G1", wt:265}}},
+  socom458:{name:"458 SOCOM", group:"Straight-Wall", sight:2.6, zeros:[50,100,150], defZero:100, maxYd:300, chartMax:250, defYd:100,
+    loads:{a:{name:"Barnes 300gr TTSX — 1900 fps", mv:1900, bc:0.236, model:"G1", wt:300}}},
+  beowulf50:{name:"50 Beowulf", group:"Straight-Wall", sight:2.6, zeros:[50,100,150], defZero:100, maxYd:250, chartMax:200, defYd:100,
+    loads:{a:{name:"Alexander Arms 350gr Hornady XTP — 1750 fps", mv:1750, bc:0.145, model:"G1", wt:350}}},
+
+  /* ---- Rimfire (.17 / .22) ---- */
+  hmr17:{name:"17 HMR", group:"Rimfire", sight:1.5, zeros:[50,100,150], defZero:100, maxYd:300, chartMax:200, defYd:100,
+    loads:{a:{name:"Hornady V-MAX 17gr — 2550 fps", mv:2550, bc:0.125, model:"G1", wt:17}}},
+  wsm17:{name:"17 WSM", group:"Rimfire", sight:1.5, zeros:[50,100,150], defZero:100, maxYd:300, chartMax:250, defYd:100,
+    loads:{a:{name:"Winchester Varmint HV 20gr Poly — 3000 fps", mv:3000, bc:0.185, model:"G1", wt:20},
+      b:{name:"Winchester Varmint HE 25gr Poly — 2600 fps", mv:2600, bc:0.230, model:"G1", wt:25}}},
+  hm2:{name:"17 Mach 2", group:"Rimfire", sight:1.5, zeros:[50,100], defZero:50, maxYd:200, chartMax:150, defYd:75,
+    loads:{a:{name:"CCI VNT 17gr — 2010 fps", mv:2010, bc:0.125, model:"G1", wt:17}}},
+  wmr22:{name:"22 WMR (Mag)", group:"Rimfire", sight:1.5, zeros:[50,100,150], defZero:100, maxYd:250, chartMax:200, defYd:100,
+    loads:{a:{name:"CCI Maxi-Mag 40gr JHP — 1875 fps", mv:1875, bc:0.114, model:"G1", wt:40}}},
+  short22:{name:"22 Short", group:"Rimfire", sight:1.0, zeros:[25,50,75], defZero:50, maxYd:150, chartMax:100, defYd:50,
+    loads:{a:{name:"CCI 29gr CPRN — 1080 fps", mv:1080, bc:0.080, model:"G1", wt:29}}},
+
+  /* ---- Varmint (.17 / .20 / .22 centerfire) ---- */
+  hornet17:{name:"17 Hornet", group:"Varmint", sight:1.8, zeros:[50,100,200], defZero:100, maxYd:300, chartMax:250, defYd:150,
+    loads:{a:{name:"Hornady V-MAX Superformance 20gr — 3650 fps", mv:3650, bc:0.185, model:"G1", wt:20}}},
+  hornet22:{name:"22 Hornet", group:"Varmint", sight:1.8, zeros:[50,100,150], defZero:100, maxYd:300, chartMax:250, defYd:150,
+    loads:{a:{name:"Hornady V-MAX 35gr — 3100 fps", mv:3100, bc:0.109, model:"G1", wt:35}}},
+  ruger204:{name:"204 Ruger", group:"Varmint", sight:1.8, zeros:[100,200], defZero:100, maxYd:700, chartMax:500, defYd:250,
+    loads:{a:{name:"Hornady V-MAX Superformance 40gr — 3900 fps", mv:3900, bc:0.275, model:"G1", wt:40}}},
+  rem222:{name:"222 Rem", group:"Varmint", sight:1.8, zeros:[100,200], defZero:100, maxYd:600, chartMax:500, defYd:250,
+    loads:{a:{name:"Hornady V-MAX Superformance 50gr — 3345 fps", mv:3345, bc:0.242, model:"G1", wt:50}}},
+  swift220:{name:"220 Swift", group:"Varmint", sight:1.8, zeros:[100,200], defZero:100, maxYd:700, chartMax:500, defYd:250,
+    loads:{a:{name:"Hornady V-MAX 55gr — 3680 fps", mv:3680, bc:0.255, model:"G1", wt:55}}},
+  rem17:{name:"17 Remington", group:"Varmint", sight:1.8, zeros:[100,200], defZero:100, maxYd:600, chartMax:500, defYd:250,
+    loads:{a:{name:"Remington AccuTip-V 20gr — 4250 fps", mv:4250, bc:0.185, model:"G1", wt:20}}},
+
+  /* ---- AR / Carbine platform ---- */
+  blk300:{name:"300 Blackout", group:"AR Platform", sight:2.6, zeros:[50,100,200], defZero:100, maxYd:600, chartMax:400, defYd:150,
+    loads:{a:{name:"Hornady BLACK 110gr V-MAX — 2375 fps", mv:2375, bc:0.290, model:"G1", wt:110},
+      b:{name:"Hornady Subsonic 190gr Sub-X — 1050 fps", mv:1050, bc:0.437, model:"G1", wt:190}}},
+  x39:{name:"7.62x39", group:"AR Platform", sight:2.0, zeros:[50,100,200], defZero:100, maxYd:600, chartMax:500, defYd:200,
+    loads:{a:{name:"Hornady BLACK 123gr SST — 2350 fps", mv:2350, bc:0.295, model:"G1", wt:123}}},
+  carbine30:{name:"30 Carbine", group:"AR Platform", sight:0.9, zeros:[50,100,150], defZero:100, maxYd:300, chartMax:250, defYd:100,
+    loads:{a:{name:"Federal American Eagle 110gr FMJ — 1990 fps", mv:1990, bc:0.165, model:"G1", wt:110}}},
+
+  /* ---- Big Game ---- */
+  w2506:{name:"25-06 Rem", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:1000, chartMax:800, defYd:300,
+    loads:{a:{name:"Hornady Precision Hunter 110gr ELD-X — 3140 fps", mv:3140, bc:0.234, model:"G7", wt:110}}},
+  w260rem:{name:"260 Rem", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:300,
+    loads:{a:{name:"Nosler Trophy Grade 140gr Ballistic Tip — 2700 fps", mv:2700, bc:0.509, model:"G1", wt:140}}},
+  sw65x55:{name:"6.5x55 Swede", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:1000, chartMax:900, defYd:300,
+    loads:{a:{name:"Hornady Superformance 140gr SST — 2735 fps", mv:2735, bc:0.520, model:"G1", wt:140},
+      b:{name:"Federal Power-Shok 140gr SP — 2650 fps", mv:2650, bc:0.438, model:"G1", wt:140}}},
+  w65284:{name:"6.5-284 Norma", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:350,
+    loads:{a:{name:"Nosler Trophy Grade 140gr AccuBond — 2750 fps", mv:2750, bc:0.509, model:"G1", wt:140}}},
+  rem708:{name:"7mm-08 Rem", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:1000, chartMax:900, defYd:300,
+    loads:{a:{name:"Hornady Precision Hunter 150gr ELD-X — 2770 fps", mv:2770, bc:0.289, model:"G7", wt:150},
+      b:{name:"Federal Vital-Shok 140gr Trophy Bonded — 2800 fps", mv:2800, bc:0.430, model:"G1", wt:140}}},
+  rem280:{name:"280 Rem", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:1000, chartMax:900, defYd:300,
+    loads:{a:{name:"Nosler Trophy Grade 140gr AccuBond — 3000 fps", mv:3000, bc:0.485, model:"G1", wt:140}}},
+  ai280:{name:"280 Ackley Imp", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:350,
+    loads:{a:{name:"Nosler Trophy Grade 150gr AccuBond LR — 2930 fps", mv:2930, bc:0.546, model:"G1", wt:150}}},
+  win284:{name:"284 Win", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:1000, chartMax:900, defYd:300,
+    loads:{a:{name:"Winchester Super-X 150gr Power-Point — 2860 fps", mv:2860, bc:0.364, model:"G1", wt:150}}},
+  w3030:{name:"30-30 Win", group:"Big Game", sight:1.8, zeros:[100,150,200], defZero:100, maxYd:400, chartMax:300, defYd:150,
+    loads:{a:{name:"Hornady LEVERevolution 160gr FTX — 2400 fps", mv:2400, bc:0.330, model:"G1", wt:160}}},
+  x54r:{name:"7.62x54R", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:1000, chartMax:900, defYd:300,
+    loads:{a:{name:"Prvi Partizan Match 182gr FMJ-BT — 2625 fps", mv:2625, bc:0.520, model:"G1", wt:182}}},
+  british303:{name:"303 British", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:800, chartMax:700, defYd:250,
+    loads:{a:{name:"Hornady Custom 150gr InterLock SP — 2685 fps", mv:2685, bc:0.361, model:"G1", wt:150}}},
+  m8x57:{name:"8mm Mauser", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:900, chartMax:800, defYd:250,
+    loads:{a:{name:"Hornady Vintage Match 196gr BTHP — 2500 fps", mv:2500, bc:0.525, model:"G1", wt:196}}},
+  f338fed:{name:"338 Federal", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:800, chartMax:700, defYd:250,
+    loads:{a:{name:"Federal Fusion 200gr Bonded SP — 2700 fps", mv:2700, bc:0.416, model:"G1", wt:200}}},
+  r35rem:{name:"35 Rem", group:"Big Game", sight:1.8, zeros:[50,100,150], defZero:100, maxYd:350, chartMax:300, defYd:150,
+    loads:{a:{name:"Hornady LEVERevolution 200gr FTX — 2225 fps", mv:2225, bc:0.300, model:"G1", wt:200}}},
+  w35whln:{name:"35 Whelen", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:700, chartMax:600, defYd:250,
+    loads:{a:{name:"Federal Fusion 200gr Bonded SP — 2800 fps", mv:2800, bc:0.343, model:"G1", wt:200}}},
+  m9x3:{name:"9.3x62 Mauser", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:700, chartMax:600, defYd:250,
+    loads:{a:{name:"Nosler Trophy Grade 250gr AccuBond — 2550 fps", mv:2550, bc:0.494, model:"G1", wt:250}}},
+
+  /* ---- Magnum ---- */
+  w257wby:{name:"257 Wby Mag", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1100, chartMax:1000, defYd:350,
+    loads:{a:{name:"Hornady Precision Hunter 110gr ELD-X — 3240 fps", mv:3240, bc:0.234, model:"G7", wt:110}}},
+  w264win:{name:"264 Win Mag", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:350,
+    loads:{a:{name:"Nosler Trophy Grade 130gr AccuBond — 3100 fps", mv:3100, bc:0.488, model:"G1", wt:130}}},
+  w270wby:{name:"270 Wby Mag", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1100, chartMax:1000, defYd:350,
+    loads:{a:{name:"Weatherby Select 130gr Hornady InterLock — 3400 fps", mv:3400, bc:0.392, model:"G1", wt:130}}},
+  wsm7:{name:"7mm WSM", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1100, chartMax:1000, defYd:350,
+    loads:{a:{name:"Winchester Super-X 150gr Power-Point — 3200 fps", mv:3200, bc:0.346, model:"G1", wt:150}}},
+  wby7:{name:"7mm Wby Mag", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:350,
+    loads:{a:{name:"Weatherby Select Plus 154gr InterLock — 3225 fps", mv:3225, bc:0.433, model:"G1", wt:154},
+      b:{name:"Weatherby Select Plus 160gr Swift A-Frame — 3125 fps", mv:3125, bc:0.450, model:"G1", wt:160}}},
+  stw7:{name:"7mm STW", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:400,
+    loads:{a:{name:"Nosler Trophy Grade 160gr AccuBond — 3055 fps", mv:3055, bc:0.531, model:"G1", wt:160}}},
+  w300wsm:{name:"300 WSM", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:350,
+    loads:{a:{name:"Hornady Precision Hunter 200gr ELD-X — 2820 fps", mv:2820, bc:0.301, model:"G7", wt:200}}},
+  w300rum:{name:"300 RUM", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:400,
+    loads:{a:{name:"Nosler Trophy Grade 180gr AccuBond — 3250 fps", mv:3250, bc:0.507, model:"G1", wt:180}}},
+  w300wby:{name:"300 Wby Mag", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:400,
+    loads:{a:{name:"Weatherby Select Plus 180gr AccuBond — 3250 fps", mv:3250, bc:0.507, model:"G1", wt:180}}},
+  w30nos:{name:"30 Nosler", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:400,
+    loads:{a:{name:"Nosler Trophy Grade 180gr AccuBond — 3200 fps", mv:3200, bc:0.507, model:"G1", wt:180}}},
+  w338win:{name:"338 Win Mag", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1000, chartMax:900, defYd:300,
+    loads:{a:{name:"Federal Premium 225gr Nosler AccuBond — 2800 fps", mv:2800, bc:0.550, model:"G1", wt:225}}},
+  r338rum:{name:"338 RUM", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1100, chartMax:1000, defYd:350,
+    loads:{a:{name:"Nosler Trophy Grade 225gr AccuBond — 2975 fps", mv:2975, bc:0.550, model:"G1", wt:225}}},
+  wby340:{name:"340 Wby Mag", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1100, chartMax:1000, defYd:350,
+    loads:{a:{name:"Weatherby Select Plus 225gr Barnes TTSX — 2970 fps", mv:2970, bc:0.514, model:"G1", wt:225}}},
+  l338lap:{name:"338 Lapua Mag", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1500, chartMax:1200, defYd:500,
+    loads:{a:{name:"Hornady Match 285gr ELD Match — 2745 fps", mv:2745, bc:0.394, model:"G7", wt:285}}},
+
+  /* ---- Big Bore / Dangerous Game / .50 ---- */
+  h375:{name:"375 H&H Mag", group:"Big Bore", sight:1.8, zeros:[50,100,200], defZero:100, maxYd:500, chartMax:400, defYd:200,
+    loads:{a:{name:"Hornady Dangerous Game 300gr DGX Bonded — 2530 fps", mv:2530, bc:0.275, model:"G1", wt:300}}},
+  ruger375:{name:"375 Ruger", group:"Big Bore", sight:1.8, zeros:[50,100,200], defZero:100, maxYd:500, chartMax:400, defYd:200,
+    loads:{a:{name:"Hornady Dangerous Game 300gr DGX Bonded — 2660 fps", mv:2660, bc:0.275, model:"G1", wt:300}}},
+  rigby416:{name:"416 Rigby", group:"Big Bore", sight:1.8, zeros:[50,100,200], defZero:100, maxYd:400, chartMax:350, defYd:150,
+    loads:{a:{name:"Hornady Dangerous Game 400gr DGX Bonded — 2415 fps", mv:2415, bc:0.319, model:"G1", wt:400}}},
+  remmag416:{name:"416 Rem Mag", group:"Big Bore", sight:1.8, zeros:[50,100,200], defZero:100, maxYd:400, chartMax:350, defYd:150,
+    loads:{a:{name:"Hornady Dangerous Game 400gr DGX Bonded — 2400 fps", mv:2400, bc:0.319, model:"G1", wt:400}}},
+  winmag458:{name:"458 Win Mag", group:"Big Bore", sight:1.8, zeros:[50,100,150], defZero:100, maxYd:350, chartMax:300, defYd:150,
+    loads:{a:{name:"Hornady Dangerous Game 500gr DGX Bonded — 2140 fps", mv:2140, bc:0.295, model:"G1", wt:500}}},
+  bmg50:{name:"50 BMG", group:"Big Bore", sight:2.5, zeros:[100,200,300], defZero:100, maxYd:2000, chartMax:1500, defYd:1000,
+    loads:{a:{name:"Hornady Match 750gr A-MAX — 2820 fps", mv:2820, bc:1.050, model:"G1", wt:750}}},
+
+  /* ---- Pistol / Handgun ---- */
+  p9mm:{name:"9mm Luger", group:"Pistol", sight:0.8, zeros:[25,50,100], defZero:25, maxYd:200, chartMax:150, defYd:50,
+    loads:{a:{name:"Hornady Custom 124gr XTP — 1110 fps", mv:1110, bc:0.165, model:"G1", wt:124},
+      b:{name:"Federal HST 124gr JHP — 1150 fps", mv:1150, bc:0.165, model:"G1", wt:124}}},
+  p380:{name:"380 ACP", group:"Pistol", sight:0.7, zeros:[25,50], defZero:25, maxYd:150, chartMax:100, defYd:50,
+    loads:{a:{name:"Hornady Critical Defense 90gr FTX — 1000 fps", mv:1000, bc:0.099, model:"G1", wt:90}}},
+  p40:{name:"40 S&W", group:"Pistol", sight:0.8, zeros:[25,50,100], defZero:25, maxYd:200, chartMax:150, defYd:50,
+    loads:{a:{name:"Federal HST 180gr JHP — 1010 fps", mv:1010, bc:0.160, model:"G1", wt:180}}},
+  p45acp:{name:"45 ACP", group:"Pistol", sight:0.8, zeros:[25,50,100], defZero:25, maxYd:150, chartMax:125, defYd:50,
+    loads:{a:{name:"Federal HST 230gr JHP — 950 fps", mv:950, bc:0.188, model:"G1", wt:230},
+      b:{name:"Hornady Custom 230gr XTP +P — 950 fps", mv:950, bc:0.188, model:"G1", wt:230}}},
+  p10mm:{name:"10mm Auto", group:"Pistol", sight:0.8, zeros:[25,50,100], defZero:25, maxYd:200, chartMax:150, defYd:50,
+    loads:{a:{name:"Hornady Custom 180gr XTP — 1275 fps", mv:1275, bc:0.164, model:"G1", wt:180}}},
+  p357mag:{name:"357 Magnum", group:"Pistol", sight:0.8, zeros:[25,50,100], defZero:50, maxYd:200, chartMax:150, defYd:50,
+    loads:{a:{name:"Hornady Custom 158gr XTP — 1250 fps", mv:1250, bc:0.206, model:"G1", wt:158}}},
+  p38spl:{name:"38 Special", group:"Pistol", sight:0.8, zeros:[25,50], defZero:25, maxYd:150, chartMax:100, defYd:50,
+    loads:{a:{name:"Hornady Custom 158gr XTP — 800 fps", mv:800, bc:0.206, model:"G1", wt:158}}},
+  p44mag:{name:"44 Magnum", group:"Pistol", sight:0.9, zeros:[25,50,100], defZero:50, maxYd:200, chartMax:150, defYd:75,
+    loads:{a:{name:"Hornady Custom 240gr XTP — 1350 fps", mv:1350, bc:0.205, model:"G1", wt:240}}},
+  p357sig:{name:"357 SIG", group:"Pistol", sight:0.8, zeros:[25,50,100], defZero:25, maxYd:200, chartMax:150, defYd:50,
+    loads:{a:{name:"Hornady Custom 147gr XTP — 1225 fps", mv:1225, bc:0.212, model:"G1", wt:147}}},
+  p327:{name:"327 Fed Mag", group:"Pistol", sight:0.8, zeros:[25,50,100], defZero:25, maxYd:200, chartMax:150, defYd:50,
+    loads:{a:{name:"Federal American Eagle 100gr JSP — 1500 fps", mv:1500, bc:0.130, model:"G1", wt:100}}},
+  p454:{name:"454 Casull", group:"Pistol", sight:0.9, zeros:[50,100], defZero:50, maxYd:200, chartMax:175, defYd:75,
+    loads:{a:{name:"Hornady Custom 240gr XTP Mag — 1900 fps", mv:1900, bc:0.160, model:"G1", wt:240}}},
+  p500sw:{name:"500 S&W Mag", group:"Pistol", sight:0.9, zeros:[50,100], defZero:50, maxYd:200, chartMax:175, defYd:75,
+    loads:{a:{name:"Hornady Custom 300gr FTX — 1950 fps", mv:1950, bc:0.200, model:"G1", wt:300}}},
+  p45colt:{name:"45 Colt", group:"Pistol", sight:0.8, zeros:[25,50,100], defZero:50, maxYd:150, chartMax:125, defYd:50,
+    loads:{a:{name:"Hornady LEVERevolution 225gr FTX — 950 fps", mv:950, bc:0.140, model:"G1", wt:225},
+      b:{name:"Hornady Cowboy 255gr LFP — 725 fps", mv:725, bc:0.117, model:"G1", wt:255}}},
+  p57:{name:"5.7x28mm", group:"Pistol", sight:0.8, zeros:[25,50,100], defZero:50, maxYd:200, chartMax:150, defYd:50,
+    loads:{a:{name:"Federal American Eagle 40gr TMJ — 1655 fps", mv:1655, bc:0.115, model:"G1", wt:40}}},
+  p32acp:{name:"32 ACP", group:"Pistol", sight:0.7, zeros:[25,50], defZero:25, maxYd:100, chartMax:75, defYd:25,
+    loads:{a:{name:"Hornady Custom 60gr XTP — 1000 fps", mv:1000, bc:0.090, model:"G1", wt:60}}},
 };
 
 const K=Math.PI*32.174*0.0023769/(8*144), A=1116.45, G=32.174, MAXYD=1200;
@@ -720,7 +879,7 @@ function drawChart(){
 
 /* ===== UI builders ===== */
 function buildCalSelect(){
-  const order=["Rimfire","Varmint","AR Platform","Precision","Big Game","Magnum","Straight-Wall"];
+  const order=["Rimfire","Varmint","AR Platform","Precision","Big Game","Magnum","Big Bore","Straight-Wall","Pistol"];
   const byGroup={};
   Object.keys(CALS).forEach(k=>{const g=CALS[k].group||"Other";(byGroup[g]=byGroup[g]||[]).push(k);});
   const groups=order.filter(g=>byGroup[g]).concat(Object.keys(byGroup).filter(g=>!order.includes(g)));

@@ -1,7 +1,7 @@
 {
   "name": "Drop Calculator — Multi-Caliber",
   "short_name": "Drop Calc",
-  "description": "Offline rifle ballistics drop calculator — RK4 point-mass solver, exact G1/G7 drag, 19 cartridges.",
+  "description": "Offline rifle & pistol ballistics drop calculator — RK4 point-mass solver, exact G1/G7 drag, 85+ cartridges.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

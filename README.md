@@ -12,8 +12,9 @@ counts), retained velocity, energy, time of flight, a full dope card, and a traj
 ## Features
 
 - **Embedded RK4 point-mass solver** (0.0008 s step) with the exact standard **G1 and G7** drag tables.
-- **19 cartridges**, grouped (Rimfire · Varmint · AR Platform · Precision · Big Game · Magnum · Straight-Wall),
-  each with 2–3 real factory loads (manufacturer-published muzzle velocity, BC, drag model).
+- **85+ cartridges** (rimfire to .50 BMG, plus pistol/handgun), grouped (Rimfire · Varmint · AR Platform ·
+  Precision · Big Game · Magnum · Big Bore · Straight-Wall · Pistol), each with 1–3 real factory loads
+  (manufacturer-published muzzle velocity, BC, drag model).
 - **Dope card** — full range table (drop / MOA / MIL / velocity / energy), nearest row tracks your target,
   transonic ranges flagged.
 - **My Rifles** — save/name/switch rifle profiles (cartridge, load, zero, sight height, turret clicks,
