@@ -1,0 +1,16 @@
+{
+  "name": "Drop Calculator — Multi-Caliber",
+  "short_name": "Drop Calc",
+  "description": "Offline rifle ballistics drop calculator — RK4 point-mass solver, exact G1/G7 drag, 19 cartridges.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#101418",
+  "theme_color": "#101418",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Drop Calculator — Multi-Caliber</title>
+<meta name="description" content="Offline rifle ballistics drop calculator — RK4 point-mass solver, exact G1/G7 drag, 19 cartridges, full dope card, wind drift and atmospheric corrections. Validated to ~0.2 in / 0.01 MOA.">
+<meta property="og:title" content="Drop Calculator — Multi-Caliber">
+<meta property="og:description" content="Offline rifle ballistics: RK4 solver, G1/G7 drag, dope card, wind &amp; atmosphere. Always verify with live fire.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="icon-512.png">
+<meta name="color-scheme" content="dark">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#101418">
+<link rel="icon" href="favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Drop Calc">
+<style>
+  :root{
+    --bg:#101418; --panel:#171d23; --panel2:#1d242c; --line:#2a333d;
+    --text:#d7dde3; --dim:#7c8893; --ret:#ffb454; --trace:#9fd6a8; --danger:#e06c6c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);
+    font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    padding:28px 16px 48px;-webkit-font-smoothing:antialiased}
+  .card{max-width:880px;margin:0 auto}
+
+  header{border:1px solid var(--line);background:var(--panel);padding:18px 22px 16px;
+    display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:flex-end}
+  .id h1{font-size:19px;letter-spacing:.04em;font-weight:600;color:#fff}
+  .id .sub{color:var(--ret);font-size:11px;letter-spacing:.18em;text-transform:uppercase;margin-top:5px}
+  .live{font-size:10px;color:var(--trace);letter-spacing:.14em;border:1px solid #2c4232;padding:5px 10px}
+
+  .controls{border:1px solid var(--line);border-top:none;background:var(--panel);
+    padding:18px 22px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .ctl label{display:block;font-size:10px;color:var(--dim);letter-spacing:.16em;
+    text-transform:uppercase;margin-bottom:7px}
+  select,input[type=number]{
+    width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    font-family:inherit;font-size:14px;padding:10px 12px;outline:none;border-radius:0;
+    -webkit-appearance:none;appearance:none}
+  select:focus,input:focus{border-color:var(--ret)}
+  .zwrap{display:flex;gap:0;flex-wrap:wrap}
+  .zbtn{flex:1;min-width:58px;background:var(--panel2);border:1px solid var(--line);color:var(--dim);
+    font-family:inherit;font-size:13px;padding:10px 0;cursor:pointer}
+  .zbtn+.zbtn{border-left:none}
+  .zbtn.on{color:#10151a;background:var(--ret);border-color:var(--ret);font-weight:700}
+  .custom{grid-column:1/-1;display:none;grid-template-columns:repeat(4,1fr);gap:12px;
+    border-top:1px dashed var(--line);padding-top:14px}
+  .custom.show{display:grid}
+
+  .rangerow{grid-column:1/-1}
+  input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:26px;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;
+    background:var(--ret);border-radius:50%;margin-top:-7.5px;border:3px solid var(--bg);box-shadow:0 0 0 1px var(--ret)}
+  input[type=range]::-moz-range-track{height:3px;background:var(--line)}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;background:var(--ret);border-radius:50%;border:3px solid var(--bg);box-shadow:0 0 0 1px var(--ret)}
+  .yardbox{display:flex;gap:12px;align-items:center}
+  .yardbox input[type=number]{width:110px;font-size:17px;font-weight:700;color:var(--ret);text-align:center}
+  .yardbox input[type=range]{flex:1}
+
+  .results{border:1px solid var(--line);border-top:none;background:var(--panel2);
+    display:grid;grid-template-columns:repeat(3,1fr);text-align:center}
+  .res{padding:20px 8px 17px;border-right:1px solid var(--line)}
+  .res:last-child{border-right:none}
+  .res .v{font-size:30px;font-weight:700;color:#fff;letter-spacing:-.01em}
+  .res.hot .v{color:var(--ret)}
+  .res .k{font-size:10px;color:var(--dim);letter-spacing:.16em;text-transform:uppercase;margin-top:7px}
+  .res .clicks{font-size:11px;color:var(--dim);margin-top:4px}
+  .res .clicks b{color:var(--text);font-weight:600}
+  .subrow{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);
+    border-top:1px solid var(--line);background:var(--panel)}
+  .subrow .res{padding:13px 8px 11px}
+  .subrow .v{font-size:17px;color:var(--text)}
+  .warn{grid-column:1/-1;display:none;padding:9px;border-top:1px solid var(--line);
+    color:var(--danger);font-size:11px;letter-spacing:.08em;text-align:center}
+  .warn.show{display:block}
+
+  .chartwrap{border:1px solid var(--line);border-top:none;background:var(--panel);padding:18px 22px 6px}
+  .chartlabel{font-size:11px;color:var(--dim);letter-spacing:.16em;text-transform:uppercase;margin-bottom:10px}
+  .chartlabel span{color:var(--ret)}
+  svg{width:100%;height:auto;display:block}
+  .legend{display:flex;gap:20px;padding:8px 2px 12px;font-size:11px;color:var(--dim);flex-wrap:wrap}
+  .legend i{display:inline-block;width:18px;height:2px;vertical-align:middle;margin-right:6px}
+
+  .notes{border:1px solid var(--line);border-top:none;background:var(--panel);
+    padding:15px 22px 17px;font-size:12px;line-height:1.65;color:var(--dim)}
+  .notes b{color:var(--text)} .notes .k{color:var(--ret)}
+
+  .disclaimer{border:1px solid var(--line);border-top:none;background:var(--panel);
+    padding:14px 22px 18px;font-size:10.5px;line-height:1.65;color:#69727c}
+  .disclaimer b{display:inline-block;color:var(--danger);letter-spacing:.1em;
+    text-transform:uppercase;font-size:10px;margin-bottom:5px}
+
+  .profiles{border:1px solid var(--line);border-top:none;background:var(--panel);
+    padding:14px 22px;display:flex;gap:10px;align-items:flex-end}
+  .profiles .ctl{flex:1;margin:0}
+  .pbtn{background:var(--panel2);border:1px solid var(--line);color:var(--text);font-family:inherit;
+    font-size:13px;padding:10px 14px;cursor:pointer;white-space:nowrap;-webkit-appearance:none;appearance:none}
+  .pbtn:hover{border-color:var(--ret)}
+  .pbtn.save{color:var(--ret)}
+
+  .dopewrap{border:1px solid var(--line);border-top:none;background:var(--panel);padding:18px 22px 18px}
+  .dopescroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.dope{width:100%;border-collapse:collapse;font-size:13px}
+  table.dope th{font-size:9.5px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;
+    font-weight:600;text-align:right;padding:8px 9px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+  table.dope td{text-align:right;padding:8px 9px;border-bottom:1px solid var(--line);color:var(--text);
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+  table.dope th:first-child,table.dope td:first-child{text-align:left}
+  table.dope td:first-child{color:var(--dim)}
+  table.dope td.dial{color:var(--ret)}
+  table.dope td.trans{color:var(--danger)}
+  table.dope tbody tr:last-child td{border-bottom:none}
+  table.dope tbody tr.here td{background:rgba(255,180,84,.12);color:#fff}
+  table.dope tbody tr.here td:first-child{color:var(--ret);font-weight:700}
+  table.dope tbody tr.here td.dial{color:#ffd9a0}
+  table.dope td.windcol{color:var(--trace)}
+  table.dope tbody tr.here td.windcol{color:#c7ead0}
+
+  .modewrap{display:flex;flex-direction:column;align-items:flex-end;gap:9px}
+  .modetoggle{display:flex}
+  .mbtn{background:var(--panel2);border:1px solid var(--line);color:var(--dim);font-family:inherit;
+    font-size:11px;letter-spacing:.12em;padding:7px 15px;cursor:pointer;-webkit-appearance:none;appearance:none}
+  .mbtn+.mbtn{border-left:none}
+  .mbtn.on{background:var(--ret);color:#10151a;border-color:var(--ret);font-weight:700}
+
+  .envpanel{display:none;border:1px solid var(--line);border-top:none;background:var(--panel);padding:2px 22px 18px}
+  body.expert .envpanel{display:block}
+  .envgroup{padding-top:14px}
+  .envhead{font-size:10px;color:var(--ret);letter-spacing:.18em;text-transform:uppercase;
+    margin:4px 0 11px;border-bottom:1px solid var(--line);padding-bottom:7px}
+  .envgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}
+  .windrow{display:none}
+  body.expert .windrow{display:grid}
+
+  @media (max-width:620px){
+    .controls{grid-template-columns:1fr}
+    .custom{grid-template-columns:1fr 1fr}
+    .res .v{font-size:22px}
+    header{padding:14px}
+    .controls,.chartwrap,.notes,.dopewrap,.profiles,.disclaimer,.envpanel{padding-left:14px;padding-right:14px}
+    table.dope th,table.dope td{padding:7px 7px;font-size:12px}
+    .envgrid{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+<div class="card">
+
+  <header>
+    <div class="id">
+      <h1>DROP CALCULATOR</h1>
+      <div class="sub">Multi-Caliber &middot; Live Point-Mass Solver</div>
+    </div>
+    <div class="modewrap">
+      <div class="modetoggle" id="modeToggle">
+        <button class="mbtn on" type="button" data-mode="simple">SIMPLE</button>
+        <button class="mbtn" type="button" data-mode="expert">EXPERT</button>
+      </div>
+      <div class="live" id="liveBadge">G7/G1 RK4 &middot; STD ATMOSPHERE</div>
+    </div>
+  </header>
+
+  <div class="profiles">
+    <div class="ctl">
+      <label for="prof">My Rifles</label>
+      <select id="prof"></select>
+    </div>
+    <button class="pbtn save" id="profSave" type="button">＋ Save current</button>
+    <button class="pbtn" id="profDel" type="button" title="Delete selected rifle">🗑</button>
+  </div>
+
+  <div class="controls">
+    <div class="ctl">
+      <label for="cal">Cartridge</label>
+      <select id="cal"></select>
+    </div>
+    <div class="ctl">
+      <label for="load">Ammunition</label>
+      <select id="load"></select>
+    </div>
+    <div class="ctl">
+      <label>Zero Distance</label>
+      <div class="zwrap" id="zwrap"></div>
+    </div>
+    <div class="ctl">
+      <label for="sh">Sight Height Over Bore (in)</label>
+      <input type="number" id="sh" value="1.8" step="0.1" min="0.5" max="4">
+    </div>
+
+    <div class="custom" id="custom">
+      <div class="ctl"><label for="cmv">Muzzle Vel fps</label><input type="number" id="cmv" value="2910" step="10" min="600" max="4500"></div>
+      <div class="ctl"><label for="cbc">Ballistic Coeff</label><input type="number" id="cbc" value="0.351" step="0.005" min="0.05" max="1.2"></div>
+      <div class="ctl"><label for="cdm">Drag Model</label><select id="cdm"><option value="G7" selected>G7</option><option value="G1">G1</option></select></div>
+      <div class="ctl"><label for="cwt">Bullet gr</label><input type="number" id="cwt" value="147" step="1" min="15" max="800"></div>
+    </div>
+
+    <div class="ctl rangerow">
+      <label>Target Range</label>
+      <div class="yardbox">
+        <input type="number" id="yardn" value="350" min="25" max="1200" step="1">
+        <input type="range" id="yards" value="350" min="25" max="1200" step="5">
+      </div>
+    </div>
+  </div>
+
+  <div class="envpanel" id="envpanel">
+    <div class="envgroup">
+      <div class="envhead">Atmosphere</div>
+      <div class="envgrid">
+        <div class="ctl"><label for="eTemp">Temp °F</label><input type="number" id="eTemp" value="59" step="1" min="-40" max="130"></div>
+        <div class="ctl"><label for="ePress">Pressure inHg</label><input type="number" id="ePress" value="29.92" step="0.01" min="20" max="32"></div>
+        <div class="ctl"><label for="eAlt">Altitude ft</label><input type="number" id="eAlt" value="800" step="50" min="0" max="15000"></div>
+        <div class="ctl"><label for="eHum">Humidity %</label><input type="number" id="eHum" value="50" step="5" min="0" max="100"></div>
+      </div>
+    </div>
+    <div class="envgroup">
+      <div class="envhead">Wind</div>
+      <div class="envgrid">
+        <div class="ctl"><label for="eWind">Speed mph</label><input type="number" id="eWind" value="0" step="1" min="0" max="60"></div>
+        <div class="ctl"><label for="eWdir">From (clock)</label>
+          <select id="eWdir">
+            <option value="12">12 — headwind</option>
+            <option value="1">1 o'clock</option>
+            <option value="2">2 o'clock</option>
+            <option value="3" selected>3 — full value →</option>
+            <option value="4">4 o'clock</option>
+            <option value="5">5 o'clock</option>
+            <option value="6">6 — tailwind</option>
+            <option value="7">7 o'clock</option>
+            <option value="8">8 o'clock</option>
+            <option value="9">9 — full value ←</option>
+            <option value="10">10 o'clock</option>
+            <option value="11">11 o'clock</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="envgroup">
+      <div class="envhead">Turret</div>
+      <div class="envgrid">
+        <div class="ctl"><label for="eMoaC">MOA / click</label>
+          <select id="eMoaC"><option value="0.25">¼ MOA</option><option value="0.125">⅛ MOA</option><option value="0.5">½ MOA</option></select></div>
+        <div class="ctl"><label for="eMilC">MIL / click</label>
+          <select id="eMilC"><option value="0.1">0.1 MIL</option><option value="0.05">0.05 MIL</option></select></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="results">
+    <div class="res"><div class="v" id="rDrop">—</div><div class="k">Drop (inches)</div><div class="clicks" id="rPath">&nbsp;</div></div>
+    <div class="res hot"><div class="v" id="rMoa">—</div><div class="k">Dial Up — MOA</div><div class="clicks" id="rMoaC">&nbsp;</div></div>
+    <div class="res hot"><div class="v" id="rMil">—</div><div class="k">Dial Up — MIL</div><div class="clicks" id="rMilC">&nbsp;</div></div>
+    <div class="subrow">
+      <div class="res"><div class="v" id="rVel">—</div><div class="k">Velocity fps</div></div>
+      <div class="res"><div class="v" id="rEn">—</div><div class="k">Energy ft·lb</div></div>
+      <div class="res"><div class="v" id="rTof">—</div><div class="k">Time of Flight</div></div>
+    </div>
+    <div class="subrow windrow" id="windrow">
+      <div class="res"><div class="v" id="rWind">—</div><div class="k">Wind Drift</div></div>
+      <div class="res"><div class="v" id="rWindMoa">—</div><div class="k">Wind — MOA</div></div>
+      <div class="res"><div class="v" id="rWindMil">—</div><div class="k">Wind — MIL</div></div>
+    </div>
+    <div class="warn" id="warn">⚠ TRANSONIC — bullet dropped below Mach 1.2; dope gets unpredictable past here</div>
+  </div>
+
+  <div class="dopewrap">
+    <div class="chartlabel">Dope Card &mdash; <span id="dopeTitle"></span>, <span id="dopeZero"></span> zero</div>
+    <div class="dopescroll"><table class="dope" id="dope"></table></div>
+  </div>
+
+  <div class="chartwrap">
+    <div class="chartlabel">Trajectory &mdash; <span id="chTitle"></span> vs other loads, current zero</div>
+    <svg id="chart" viewBox="0 0 840 360" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="notes">
+    <b>Specs are manufacturer-published</b> (test-barrel velocities) — your barrel will differ, especially short barrels: a 16" AR runs ~150–200 fps under the 20" test numbers; rimfire varies barrel to barrel. <b>Chronograph your gun and use Custom for real dope.</b><br><br>
+    <b>Clicks:</b> MOA assumes <span class="k">¼-MOA turret</span>; MIL assumes <span class="k">0.1-MIL</span>. Sight height matters: scoped bolt gun ≈ 1.5–1.8", AR-15 ≈ 2.6". Conditions: 59°F / 29.92 inHg / sea level. Negative dial ("DN") means the bullet is still above the sight line — hold or dial down.
+  </div>
+
+  <div class="disclaimer">
+    <b>⚠ Verify with live fire — use at your own risk</b><br>
+    This is an estimation and reference tool only. Every solution is theoretical, computed from
+    manufacturer-published velocities and ballistic coefficients in a standard atmosphere — your
+    rifle, barrel length, ammunition lot, optic, and environmental conditions <b style="display:inline;text-transform:none;letter-spacing:0;font-size:inherit;margin:0">will</b>
+    differ. ALWAYS confirm your actual dope by shooting at known distances before relying on it for
+    any shot. You alone are responsible for safe firearm handling, positive target identification,
+    your backstop, and every round you fire. The authors accept no liability for any damage, injury,
+    or loss arising from use, misuse, or reliance on this tool or its output. Not affiliated with,
+    endorsed by, or sponsored by any firearms or ammunition manufacturer; product names and
+    specifications are property of their respective owners and are used for identification only.
+  </div>
+</div>
+
+<script>
+/* ===== Standard drag tables (Mach, Cd) — exact G1/G7 reference tables ===== */
+const DRAG={};
+DRAG.G1=[[0,0.2629],[0.05,0.2558],[0.1,0.2487],[0.15,0.2413],[0.2,0.2344],[0.25,0.2278],[0.3,0.2214],[0.35,0.2155],[0.4,0.2104],[0.45,0.2061],[0.5,0.2032],[0.55,0.202],[0.6,0.2034],[0.7,0.2165],[0.725,0.223],[0.75,0.2313],[0.775,0.2417],[0.8,0.2546],[0.825,0.2706],[0.85,0.2901],[0.875,0.3136],[0.9,0.3415],[0.925,0.3734],[0.95,0.4084],[0.975,0.4448],[1,0.4805],[1.025,0.5136],[1.05,0.5427],[1.075,0.5677],[1.1,0.5883],[1.125,0.6053],[1.15,0.6191],[1.2,0.6393],[1.25,0.6518],[1.3,0.6589],[1.35,0.6621],[1.4,0.6625],[1.45,0.6607],[1.5,0.6573],[1.55,0.6528],[1.6,0.6474],[1.65,0.6413],[1.7,0.6347],[1.75,0.628],[1.8,0.621],[1.85,0.6141],[1.9,0.6072],[1.95,0.6003],[2,0.5934],[2.05,0.5867],[2.1,0.5804],[2.15,0.5743],[2.2,0.5685],[2.25,0.563],[2.3,0.5577],[2.35,0.5527],[2.4,0.5481],[2.45,0.5438],[2.5,0.5397],[2.6,0.5325],[2.7,0.5264],[2.8,0.5211],[2.9,0.5168],[3,0.5133],[3.1,0.5105],[3.2,0.5084],[3.3,0.5067],[3.4,0.5054],[3.5,0.504],[3.6,0.503],[3.7,0.5022],[3.8,0.5016],[3.9,0.501],[4,0.5006],[4.2,0.4998],[4.4,0.4995],[4.6,0.4992],[4.8,0.499],[5,0.4988]];
+DRAG.G7=[[0,0.1198],[0.05,0.1197],[0.1,0.1196],[0.15,0.1194],[0.2,0.1193],[0.25,0.1194],[0.3,0.1194],[0.35,0.1194],[0.4,0.1193],[0.45,0.1193],[0.5,0.1194],[0.55,0.1193],[0.6,0.1194],[0.65,0.1197],[0.7,0.1202],[0.725,0.1207],[0.75,0.1215],[0.775,0.1226],[0.8,0.1242],[0.825,0.1266],[0.85,0.1306],[0.875,0.1368],[0.9,0.1464],[0.925,0.166],[0.95,0.2054],[0.975,0.2993],[1,0.3803],[1.025,0.4015],[1.05,0.4043],[1.075,0.4034],[1.1,0.4014],[1.125,0.3987],[1.15,0.3955],[1.2,0.3884],[1.25,0.381],[1.3,0.3732],[1.35,0.3657],[1.4,0.358],[1.5,0.344],[1.55,0.3376],[1.6,0.3315],[1.65,0.326],[1.7,0.3209],[1.75,0.316],[1.8,0.3117],[1.85,0.3078],[1.9,0.3042],[1.95,0.301],[2,0.298],[2.05,0.2951],[2.1,0.2922],[2.15,0.2892],[2.2,0.2864],[2.25,0.2835],[2.3,0.2807],[2.35,0.2779],[2.4,0.2752],[2.45,0.2725],[2.5,0.2697],[2.55,0.267],[2.6,0.2643],[2.65,0.2615],[2.7,0.2588],[2.75,0.2561],[2.8,0.2533],[2.85,0.2506],[2.9,0.2479],[2.95,0.2451],[3,0.2424],[3.1,0.2368],[3.2,0.2313],[3.3,0.2258],[3.4,0.2205],[3.5,0.2154],[3.6,0.2106],[3.7,0.206],[3.8,0.2017],[3.9,0.1975],[4,0.1935],[4.2,0.1861],[4.4,0.1793],[4.6,0.173],[4.8,0.1672],[5,0.1618]];
+
+/* ===== Cartridge & load library (manufacturer-published specs) ===== */
+const CALS={
+  /* ---- Rimfire ---- */
+  lr22:{name:"22 LR", group:"Rimfire", sight:1.5, zeros:[25,50,75,100], defZero:50, maxYd:400, chartMax:250, defYd:100,
+    loads:{
+      a:{name:"CCI Mini-Mag 40gr CPRN — 1235 fps", mv:1235, bc:0.130, model:"G1", wt:40},
+      b:{name:"CCI Standard Velocity 40gr — 1070 fps", mv:1070, bc:0.125, model:"G1", wt:40},
+      c:{name:"CCI Stinger 32gr CPHP — 1640 fps", mv:1640, bc:0.084, model:"G1", wt:32},
+    }},
+
+  /* ---- Varmint ---- */
+  v2250:{name:"22-250 Rem", group:"Varmint", sight:1.8, zeros:[100,200], defZero:100, maxYd:800, chartMax:600, defYd:250,
+    loads:{
+      a:{name:"Hornady Varmint Express 55gr V-MAX — 3680 fps", mv:3680, bc:0.255, model:"G1", wt:55},
+      b:{name:"Federal Power-Shok 55gr JSP — 3650 fps", mv:3650, bc:0.208, model:"G1", wt:55},
+    }},
+  w243:{name:"243 Win", group:"Varmint", sight:1.8, zeros:[100,200], defZero:100, maxYd:1000, chartMax:700, defYd:300,
+    loads:{
+      a:{name:"Hornady Superformance 95gr SST — 3185 fps", mv:3185, bc:0.355, model:"G1", wt:95},
+      b:{name:"Federal Power-Shok 100gr JSP — 2960 fps", mv:2960, bc:0.355, model:"G1", wt:100},
+      c:{name:"Federal Vital-Shok 95gr Nosler Ballistic Tip — 3025 fps", mv:3025, bc:0.378, model:"G1", wt:95},
+    }},
+
+  /* ---- AR Platform ---- */
+  c223:{name:"223 / 5.56", group:"AR Platform", sight:2.6, zeros:[36,50,100,200], defZero:50, maxYd:1000, chartMax:800, defYd:300,
+    loads:{
+      a:{name:"55gr FMJ (M193-type) — 3165 fps", mv:3165, bc:0.246, model:"G1", wt:55},
+      b:{name:"62gr FMJ (M855-type) — 3020 fps", mv:3020, bc:0.304, model:"G1", wt:62},
+      c:{name:"77gr OTM (MK262-type) — 2750 fps", mv:2750, bc:0.372, model:"G1", wt:77},
+    }},
+  gren:{name:"6.5 Grendel", group:"AR Platform", sight:2.6, zeros:[50,100,200], defZero:100, maxYd:800, chartMax:700, defYd:300,
+    loads:{
+      a:{name:"Hornady BLACK 123gr ELD Match — 2580 fps", mv:2580, bc:0.255, model:"G7", wt:123},
+      b:{name:"Federal Fusion MSR 120gr SP — 2600 fps", mv:2600, bc:0.340, model:"G1", wt:120},
+    }},
+  valk:{name:"224 Valkyrie", group:"AR Platform", sight:2.6, zeros:[50,100,200], defZero:100, maxYd:1000, chartMax:800, defYd:300,
+    loads:{
+      a:{name:"Hornady Match 88gr ELD Match — 2675 fps", mv:2675, bc:0.274, model:"G7", wt:88},
+      b:{name:"Federal American Eagle 75gr TMJ — 3000 fps", mv:3000, bc:0.400, model:"G1", wt:75},
+    }},
+
+  /* ---- Precision ---- */
+  cm6:{name:"6mm Creedmoor", group:"Precision", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:350,
+    loads:{
+      a:{name:"Hornady Match 108gr ELD-M — 2960 fps", mv:2960, bc:0.270, model:"G7", wt:108},
+      b:{name:"Federal Gold Medal Berger 105gr Hybrid — 2950 fps", mv:2950, bc:0.536, model:"G1", wt:105},
+    }},
+  cm65:{name:"6.5 Creedmoor", group:"Precision", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:350,
+    loads:{
+      a:{name:"Hornady Match 140gr ELD-M — 2710 fps", mv:2710, bc:0.326, model:"G7", wt:140},
+      b:{name:"Hornady PH 143gr ELD-X — 2700 fps", mv:2700, bc:0.315, model:"G7", wt:143},
+      c:{name:"Hornady Match 147gr ELD-M — 2695 fps", mv:2695, bc:0.351, model:"G7", wt:147},
+    }},
+  prc65:{name:"6.5 PRC", group:"Precision", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:350,
+    loads:{
+      a:{name:"Hornady Match 147gr ELD-M — 2910 fps", mv:2910, bc:0.351, model:"G7", wt:147},
+      b:{name:"Hornady PH 143gr ELD-X — 2960 fps", mv:2960, bc:0.315, model:"G7", wt:143},
+      c:{name:"Federal Terminal Ascent 130gr — 3000 fps", mv:3000, bc:0.532, model:"G1", wt:130},
+    }},
+
+  /* ---- Big Game ---- */
+  w270:{name:"270 Win", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:1000, chartMax:800, defYd:300,
+    loads:{
+      a:{name:"Hornady Precision Hunter 145gr ELD-X — 2970 fps", mv:2970, bc:0.272, model:"G7", wt:145},
+      b:{name:"Winchester Deer Season XP 130gr — 3060 fps", mv:3060, bc:0.450, model:"G1", wt:130},
+      c:{name:"Federal Vital-Shok 150gr Nosler Partition — 2830 fps", mv:2830, bc:0.466, model:"G1", wt:150},
+    }},
+  w308:{name:"308 Win", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:300,
+    loads:{
+      a:{name:"Federal GMM 168gr SMK — 2650 fps", mv:2650, bc:0.224, model:"G7", wt:168},
+      b:{name:"Federal GMM 175gr SMK — 2600 fps", mv:2600, bc:0.243, model:"G7", wt:175},
+      c:{name:"Hornady PH 178gr ELD-X — 2600 fps", mv:2600, bc:0.278, model:"G7", wt:178},
+    }},
+  s3006:{name:"30-06 Sprg", group:"Big Game", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:300,
+    loads:{
+      a:{name:"Hornady PH 178gr ELD-X — 2750 fps", mv:2750, bc:0.278, model:"G7", wt:178},
+      b:{name:"Federal 180gr Nosler Partition — 2700 fps", mv:2700, bc:0.474, model:"G1", wt:180},
+    }},
+
+  /* ---- Magnum ---- */
+  rm7:{name:"7mm Rem Mag", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:350,
+    loads:{
+      a:{name:"Hornady Precision Hunter 162gr ELD-X — 2975 fps", mv:2975, bc:0.318, model:"G7", wt:162},
+      b:{name:"Federal Vital-Shok 160gr Nosler Partition — 2950 fps", mv:2950, bc:0.475, model:"G1", wt:160},
+    }},
+  prc7:{name:"7mm PRC", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:400,
+    loads:{
+      a:{name:"Hornady Precision Hunter 175gr ELD-X — 3000 fps", mv:3000, bc:0.347, model:"G7", wt:175},
+      b:{name:"Berger Elite Hunter 175gr — 2920 fps", mv:2920, bc:0.336, model:"G7", wt:175},
+    }},
+  wm300:{name:"300 Win Mag", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:350,
+    loads:{
+      a:{name:"Hornady PH 200gr ELD-X — 2850 fps", mv:2850, bc:0.301, model:"G7", wt:200},
+      b:{name:"Federal GMM 190gr SMK — 2900 fps", mv:2900, bc:0.533, model:"G1", wt:190},
+    }},
+  prc300:{name:"300 PRC", group:"Magnum", sight:1.8, zeros:[100,200], defZero:100, maxYd:1200, chartMax:1000, defYd:400,
+    loads:{
+      a:{name:"Hornady Precision Hunter 212gr ELD-X — 2860 fps", mv:2860, bc:0.354, model:"G7", wt:212},
+      b:{name:"Hornady Match 225gr ELD-M — 2810 fps", mv:2810, bc:0.402, model:"G7", wt:225},
+    }},
+
+  /* ---- Straight-Wall (Michigan limited-firearm legal) ---- */
+  leg350:{name:"350 Legend", group:"Straight-Wall", sight:1.8, zeros:[50,100,150,200], defZero:100, maxYd:400, chartMax:300, defYd:150,
+    loads:{
+      a:{name:"Winchester Deer Season XP 150gr — 2325 fps", mv:2325, bc:0.223, model:"G1", wt:150},
+      b:{name:"Hornady American Whitetail 170gr InterLock — 2200 fps", mv:2200, bc:0.215, model:"G1", wt:170},
+      c:{name:"Federal Power-Shok 180gr SP — 2100 fps", mv:2100, bc:0.245, model:"G1", wt:180},
+    }},
+  bm450:{name:"450 Bushmaster", group:"Straight-Wall", sight:1.8, zeros:[50,100,150,200], defZero:100, maxYd:350, chartMax:300, defYd:150,
+    loads:{
+      a:{name:"Hornady BLACK 250gr FTX — 2200 fps", mv:2200, bc:0.210, model:"G1", wt:250},
+      b:{name:"Winchester Deer Season XP 250gr — 2200 fps", mv:2200, bc:0.210, model:"G1", wt:250},
+    }},
+  gov4570:{name:"45-70 Govt", group:"Straight-Wall", sight:1.8, zeros:[50,100,150,200], defZero:100, maxYd:400, chartMax:300, defYd:150,
+    loads:{
+      a:{name:"Hornady LEVERevolution 325gr FTX — 2000 fps", mv:2000, bc:0.230, model:"G1", wt:325},
+      b:{name:"Federal Power-Shok 300gr JSP — 1850 fps", mv:1850, bc:0.289, model:"G1", wt:300},
+    }},
+};
+
+const K=Math.PI*32.174*0.0023769/(8*144), A=1116.45, G=32.174, MAXYD=1200;
+
+function cdFn(model){
+  const t=DRAG[model];
+  return m=>{
+    if(m<=t[0][0])return t[0][1];
+    if(m>=t[t.length-1][0])return t[t.length-1][1];
+    let lo=0,hi=t.length-1;
+    while(hi-lo>1){const mid=(lo+hi)>>1; if(t[mid][0]<=m)lo=mid;else hi=mid;}
+    const f=(m-t[lo][0])/(t[hi][0]-t[lo][0]);
+    return t[lo][1]+f*(t[hi][1]-t[lo][1]);
+  };
+}
+
+/* opt (optional, EXPERT mode only): {dr, sos, wx, wz}
+   dr = air-density ratio (actual/standard), sos = speed of sound fps, wx = downrange wind fps
+   (tailwind +), wz = crosswind fps (+ = pushing right). With opt omitted the math is bit-identical
+   to the original validated 2-D solver: dr=1, sos=A, no wind, vz stays 0, z stays 0. */
+function solve(mv,bc,model,sightH,angle,maxYd,opt){
+  opt=opt||{};
+  const dr=opt.dr||1, sos=opt.sos||A, wx=opt.wx||0, wz=opt.wz||0;
+  const cd=cdFn(model),dt=0.0008;
+  let x=0,y=-sightH/12,z=0,vx=mv*Math.cos(angle),vy=mv*Math.sin(angle),vz=0,t=0;
+  const N=maxYd+1;
+  const drop=new Float64Array(N),vel=new Float64Array(N),tof=new Float64Array(N),drift=new Float64Array(N);
+  let nxt=0;
+  const acc=(vx,vy,vz)=>{const rx=vx-wx,ry=vy,rz=vz-wz,
+    v=rz?Math.hypot(rx,ry,rz):Math.hypot(rx,ry),a=-K*dr*cd(v/sos)*v/bc;return[a*rx,a*ry-G,a*rz];};
+  while(nxt<N){
+    if(x>=nxt*3){drop[nxt]=y*12;vel[nxt]=vz?Math.hypot(vx,vy,vz):Math.hypot(vx,vy);tof[nxt]=t;drift[nxt]=z*12;nxt++;continue;}
+    const[a1x,a1y,a1z]=acc(vx,vy,vz);
+    const[a2x,a2y,a2z]=acc(vx+a1x*dt/2,vy+a1y*dt/2,vz+a1z*dt/2);
+    const[a3x,a3y,a3z]=acc(vx+a2x*dt/2,vy+a2y*dt/2,vz+a2z*dt/2);
+    const[a4x,a4y,a4z]=acc(vx+a3x*dt,vy+a3y*dt,vz+a3z*dt);
+    const vx2=vx+a1x*dt/2, vy2=vy+a1y*dt/2, vz2=vz+a1z*dt/2,
+          vx3=vx+a2x*dt/2, vy3=vy+a2y*dt/2, vz3=vz+a2z*dt/2,
+          vx4=vx+a3x*dt,   vy4=vy+a3y*dt,   vz4=vz+a3z*dt;
+    x+=(vx+2*vx2+2*vx3+vx4)/6*dt;
+    y+=(vy+2*vy2+2*vy3+vy4)/6*dt;
+    z+=(vz+2*vz2+2*vz3+vz4)/6*dt;
+    vx+=(a1x+2*a2x+2*a3x+a4x)/6*dt;
+    vy+=(a1y+2*a2y+2*a3y+a4y)/6*dt;
+    vz+=(a1z+2*a2z+2*a3z+a4z)/6*dt;
+    t+=dt;
+    if(vx<200)break;
+  }
+  return{drop,vel,tof,drift,reached:nxt-1};
+}
+
+function zeroAngle(mv,bc,model,sightH,zeroYd,opt){
+  let lo=0,hi=0.05;
+  for(let i=0;i<36;i++){
+    const mid=(lo+hi)/2;
+    const r=solve(mv,bc,model,sightH,mid,zeroYd+2,opt);
+    if(r.drop[zeroYd]<0)lo=mid;else hi=mid;
+  }
+  return(lo+hi)/2;
+}
+
+/* ===== state ===== */
+const S={cal:'prc65',load:'a',zero:100,yd:350,cache:{},mode:'simple',
+  env:{temp:59,press:29.92,alt:800,hum:50,wind:0,windDir:3,moaClick:0.25,milClick:0.1}};
+const $=id=>document.getElementById(id);
+const cal=()=>CALS[S.cal];
+
+function params(){
+  if(S.load==='custom')return{name:'Custom',mv:+$('cmv').value||2700,bc:+$('cbc').value||0.3,
+    model:$('cdm').value,wt:+$('cwt').value||150};
+  return cal().loads[S.load];
+}
+function sightH(){return +$('sh').value||cal().sight;}
+
+/* atmosphere + wind -> solver opt; null in Simple mode (standard atmosphere, no wind) */
+function envOpt(){
+  if(S.mode!=='expert')return null;
+  const e=S.env, tF=e.temp, tC=(tF-32)*5/9, tK=tC+273.15;
+  const pStat=e.press*Math.pow(1-6.8753e-6*e.alt,5.2559);   // sea-level/altimeter setting + altitude -> station inHg
+  const psat=610.78*Math.pow(10,7.5*tC/(tC+237.3));          // saturation vapor pressure, Pa (Tetens)
+  const pv=(e.hum/100)*psat, pPa=pStat*3386.389, pd=pPa-pv;
+  const rho=pd/(287.058*tK)+pv/(461.495*tK);                 // humid-air density, kg/m^3
+  const dr=rho/1.225;
+  const sos=1116.45*Math.sqrt(tK/288.15);                    // speed of sound scales with sqrt(T)
+  const da=(1-Math.pow(dr,1/4.2559))/2.25577e-5*3.28084;     // density altitude, ft (from density ratio)
+  const wfps=e.wind*1.466667, ang=(e.windDir%12)*Math.PI/6;  // clock -> radians (12=0, 3=pi/2, 6=pi, 9=3pi/2)
+  const wx=Math.cos(ang)*wfps;                               // 12 o'clock (head) -> +x air = tailwind? handled by sign below
+  const wz=-Math.sin(ang)*wfps;                              // 3 o'clock (from right) -> pushes left (-z); validated vs pybc
+  return {dr,sos,wx:-wx,wz,da};                              // -wx: 12 o'clock = headwind (air toward shooter)
+}
+
+function getTraj(key,p,zero){
+  const eo=envOpt();
+  const sig=eo?[eo.dr.toFixed(5),eo.sos.toFixed(3),eo.wx.toFixed(3),eo.wz.toFixed(3)].join(','):'std';
+  const ck=[S.cal,key,p.mv,p.bc,p.model,zero,sightH(),sig].join('|');
+  if(!S.cache[ck]){
+    const za=eo?{dr:eo.dr,sos:eo.sos}:undefined;            // zero solved in current air, no wind
+    const a=zeroAngle(p.mv,p.bc,p.model,sightH(),zero,za);
+    S.cache[ck]=solve(p.mv,p.bc,p.model,sightH(),a,cal().maxYd,eo||undefined);
+  }
+  return S.cache[ck];
+}
+
+function update(){
+  const c=cal(), p=params(), tr=getTraj(S.load,p,S.zero), eo=envOpt();
+  const yd=Math.min(Math.max(S.yd,25),Math.min(c.maxYd,tr.reached));
+  const drop=tr.drop[yd], v=tr.vel[yd], t=tr.tof[yd];
+  const moa=-drop/(yd/100*1.0472), mil=-drop/(yd/100*3.6);
+  const en=p.wt*v*v/450436;
+  const cMoa=S.env.moaClick, cMil=S.env.milClick, moaFrac={0.25:'¼',0.125:'⅛',0.5:'½'};
+
+  $('rDrop').textContent=(drop>=0?'+':'')+drop.toFixed(1);
+  $('rPath').textContent=drop>=0?'above line of sight':'below line of sight';
+  $('rMoa').textContent=moa>0.005?moa.toFixed(2):(moa<-0.005?'DN '+(-moa).toFixed(2):'0.00');
+  $('rMoaC').innerHTML='<b>'+Math.round(Math.abs(moa)/cMoa)+'</b> clicks @ '+(moaFrac[cMoa]||cMoa)+' MOA';
+  $('rMil').textContent=mil>0.005?mil.toFixed(2):(mil<-0.005?'DN '+(-mil).toFixed(2):'0.00');
+  $('rMilC').innerHTML='<b>'+Math.round(Math.abs(mil)/cMil)+'</b> clicks @ '+cMil+' MIL';
+  $('rVel').textContent=Math.round(v).toLocaleString();
+  $('rEn').textContent=Math.round(en).toLocaleString();
+  $('rTof').textContent=t.toFixed(2)+'s';
+
+  /* wind (expert only) — drift +z = bullet pushed right */
+  const drift=tr.drift?tr.drift[yd]:0, wMoa=drift/(yd/100*1.0472), wMil=drift/(yd/100*3.6);
+  const dirL=x=>Math.abs(x)<0.05?'':(x>0?' R':' L');
+  $('rWind').textContent=Math.abs(drift)<0.05?'0.0″':Math.abs(drift).toFixed(1)+'″'+dirL(drift);
+  $('rWindMoa').textContent=(Math.abs(wMoa)<0.005?'0.00':Math.abs(wMoa).toFixed(2))+dirL(wMoa);
+  $('rWindMil').textContent=(Math.abs(wMil)<0.005?'0.00':Math.abs(wMil).toFixed(2))+dirL(wMil);
+
+  $('liveBadge').textContent=eo?('CUSTOM ATM · DA '+Math.round(eo.da).toLocaleString()+' ft'):'G7/G1 RK4 · STD ATMOSPHERE';
+  $('warn').classList.toggle('show', p.mv>A*1.2 && v<A*1.2);
+  drawChart();
+  drawDope();
+  saveLast();
+}
+
+/* ===== dope card (full range table — reuses the same trajectory + formulas) ===== */
+const fmtDial=x=>Math.abs(x)<0.05?'0.0':(x>0?x.toFixed(1):'−'+(-x).toFixed(1));
+function drawDope(){
+  const c=cal(), p=params(), sel=getTraj(S.load,p,S.zero);
+  const end=Math.min(c.maxYd, sel.reached);
+  const step=end<=300?25:end<=600?50:100;
+  const yds=[];
+  for(let y=step;y<=end;y+=step)yds.push(y);
+  if(end>step && yds[yds.length-1]!==end)yds.push(end);
+  const cur=Math.min(Math.max(S.yd,25),end);
+  const nearest=yds.reduce((a,b)=>Math.abs(b-cur)<Math.abs(a-cur)?b:a, yds[0]);
+  const wind=S.mode==='expert' && sel.drift;
+  const fmtWind=x=>Math.abs(x)<0.05?'0':Math.abs(x).toFixed(1)+(x>0?' R':' L');
+  const head='<thead><tr><th>Yards</th><th>Drop in</th>'+(wind?'<th>Wind in</th>':'')+
+    '<th>MOA</th><th>MIL</th><th>Vel fps</th><th>Energy</th></tr></thead>';
+  let body='';
+  for(const y of yds){
+    const drop=sel.drop[y], v=sel.vel[y];
+    const moa=-drop/(y/100*1.0472), mil=-drop/(y/100*3.6), en=p.wt*v*v/450436;
+    body+='<tr'+(y===nearest?' class="here"':'')+'>'+
+      '<td>'+y+'</td>'+
+      '<td>'+(drop>=0?'+':'')+drop.toFixed(1)+'</td>'+
+      (wind?'<td class="windcol">'+fmtWind(sel.drift[y])+'</td>':'')+
+      '<td class="dial">'+fmtDial(moa)+'</td>'+
+      '<td class="dial">'+fmtDial(mil)+'</td>'+
+      '<td'+(v<A*1.2?' class="trans"':'')+'>'+Math.round(v).toLocaleString()+'</td>'+
+      '<td>'+Math.round(en).toLocaleString()+'</td></tr>';
+  }
+  $('dope').innerHTML=head+'<tbody>'+body+'</tbody>';
+  $('dopeTitle').textContent=p.name.split('—')[0].trim();
+  $('dopeZero').textContent=S.zero+'yd';
+}
+
+/* ===== chart ===== */
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e};
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const niceStep=r=>{const raw=r/6,p=Math.pow(10,Math.floor(Math.log10(raw)));
+  for(const m of[1,2,2.5,5,10])if(raw<=m*p)return m*p; return 10*p;};
+
+function drawChart(){
+  const svg=$('chart');svg.innerHTML='';
+  const W=840,H=360,mL=58,mR=20,mT=16,mB=42,pw=W-mL-mR,ph=H-mT-mB;
+  const c=cal(), p=params();
+  const sel=getTraj(S.load,p,S.zero);
+  const others=Object.keys(c.loads).filter(k=>S.load==='custom'||k!==S.load)
+    .map(k=>({k,name:c.loads[k].name.split('—')[0].trim(),tr:getTraj(k,c.loads[k],S.zero)}));
+
+  const x0=Math.min(...c.zeros, 25)>=100?100:25, x1=c.chartMax;
+  const allTr=[sel,...others.map(o=>o.tr)];
+  let yMin=Math.min(...allTr.map(tr=>tr.drop[Math.min(x1,tr.reached)]))*1.08;
+  let yMaxv=Math.max(2,...allTr.map(tr=>{let m=0;for(let x=x0;x<=Math.min(x1,tr.reached);x+=5)m=Math.max(m,tr.drop[x]);return m;}))*1.3;
+  if(yMin>-10)yMin=-10;
+  const X=x=>mL+(x-x0)/(x1-x0)*pw, Y=y=>mT+(yMaxv-y)/(yMaxv-yMin)*ph;
+
+  const xs=niceStep(x1-x0);
+  for(let x=Math.ceil(x0/xs)*xs;x<=x1;x+=xs){
+    svg.appendChild(el('line',{x1:X(x),y1:mT,x2:X(x),y2:mT+ph,stroke:css('--line')}));
+    const t=el('text',{x:X(x),y:H-16,'text-anchor':'middle',fill:css('--dim'),'font-size':11,'font-family':'inherit'});
+    t.textContent=x;svg.appendChild(t);
+  }
+  const ys=niceStep(yMaxv-yMin);
+  for(let y=0;y>yMin;y-=ys){
+    svg.appendChild(el('line',{x1:mL,y1:Y(y),x2:mL+pw,y2:Y(y),stroke:y===0?css('--dim'):css('--line'),'stroke-dasharray':y===0?'':'2 4'}));
+    const t=el('text',{x:mL-8,y:Y(y)+4,'text-anchor':'end',fill:y===0?css('--text'):css('--dim'),'font-size':11,'font-family':'inherit'});
+    t.textContent=y===0?'ZERO':y+'"';svg.appendChild(t);
+  }
+  const cap=el('text',{x:mL+pw/2,y:H-1,fill:css('--dim'),'font-size':10,'letter-spacing':'2','text-anchor':'middle','font-family':'inherit'});
+  cap.textContent='YARDS';svg.appendChild(cap);
+
+  const ghosts=['#5e6b78','#515e6b','#46525e'];
+  const path=tr=>{let d='';const lim=Math.min(x1,tr.reached);
+    for(let x=x0;x<=lim;x+=Math.max(2,Math.round((x1-x0)/200)))
+      d+=(d?'L':'M')+X(x).toFixed(1)+' '+Y(tr.drop[x]).toFixed(1)+' ';return d;};
+  others.forEach((o,i)=>{
+    svg.appendChild(el('path',{d:path(o.tr),fill:'none',stroke:ghosts[i%3],'stroke-width':1.4,'stroke-dasharray':'4 4',opacity:.8}));
+  });
+  svg.appendChild(el('path',{d:path(sel),fill:'none',stroke:css('--ret'),'stroke-width':2.6}));
+
+  const yd=Math.min(Math.max(S.yd,x0),Math.min(x1,sel.reached));
+  const my=sel.drop[yd];
+  svg.appendChild(el('line',{x1:X(yd),y1:mT,x2:X(yd),y2:mT+ph,stroke:css('--ret'),'stroke-width':1,opacity:.45,'stroke-dasharray':'3 3'}));
+  svg.appendChild(el('circle',{cx:X(yd),cy:Y(my),r:5,fill:css('--bg'),stroke:css('--ret'),'stroke-width':2.5}));
+  const lbl=el('text',{x:Math.min(Math.max(X(yd),mL+30),mL+pw-30),y:Math.max(Y(my)-13,mT+12),'text-anchor':'middle',fill:css('--ret'),'font-size':12,'font-weight':'700','font-family':'inherit'});
+  lbl.textContent=my.toFixed(1)+'"';svg.appendChild(lbl);
+
+  $('chTitle').textContent=p.name.split('—')[0].trim()+' (solid)';
+  $('legend').innerHTML='<span><i style="background:'+css('--ret')+'"></i>'+p.name.split('—')[0].trim()+'</span>'+
+    others.map((o,i)=>'<span><i style="background:'+ghosts[i%3]+'"></i>'+o.name+'</span>').join('');
+}
+
+/* ===== UI builders ===== */
+function buildCalSelect(){
+  const order=["Rimfire","Varmint","AR Platform","Precision","Big Game","Magnum","Straight-Wall"];
+  const byGroup={};
+  Object.keys(CALS).forEach(k=>{const g=CALS[k].group||"Other";(byGroup[g]=byGroup[g]||[]).push(k);});
+  const groups=order.filter(g=>byGroup[g]).concat(Object.keys(byGroup).filter(g=>!order.includes(g)));
+  $('cal').innerHTML=groups.map(g=>'<optgroup label="'+g+'">'+
+    byGroup[g].map(k=>'<option value="'+k+'"'+(k===S.cal?' selected':'')+'>'+CALS[k].name+'</option>').join('')+
+    '</optgroup>').join('');
+}
+function buildLoadSelect(){
+  const c=cal();
+  $('load').innerHTML=Object.keys(c.loads).map(k=>'<option value="'+k+'"'+(k===S.load?' selected':'')+'>'+c.loads[k].name+'</option>').join('')
+    +'<option value="custom"'+(S.load==='custom'?' selected':'')+'>Custom (your chrono data)</option>';
+}
+function buildZeros(){
+  const c=cal();
+  $('zwrap').innerHTML=c.zeros.map(z=>'<button class="zbtn'+(z===S.zero?' on':'')+'" data-z="'+z+'">'+z+' yd</button>').join('');
+  document.querySelectorAll('.zbtn').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.zbtn').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');S.zero=+b.dataset.z;update();
+  }));
+}
+function applyCalDefaults(){
+  const c=cal();
+  S.load='a'; S.zero=c.defZero; S.yd=c.defYd;
+  $('sh').value=c.sight;
+  $('yards').min=25;$('yards').max=c.maxYd;$('yards').value=S.yd;
+  $('yardn').min=25;$('yardn').max=c.maxYd;$('yardn').value=S.yd;
+  $('custom').classList.remove('show');
+  buildLoadSelect();buildZeros();
+}
+
+/* ===== rifle profiles + remember-last (localStorage) ===== */
+const LS={rifles:'dropcalc.rifles',last:'dropcalc.last'};
+let RIFLES=(()=>{try{return JSON.parse(localStorage.getItem(LS.rifles))||[]}catch(e){return[]}})();
+let lastTimer=null;
+function saveRifles(){try{localStorage.setItem(LS.rifles,JSON.stringify(RIFLES))}catch(e){}}
+function snapshot(){
+  const o={cal:S.cal,load:S.load,zero:S.zero,yd:S.yd,sh:+$('sh').value||cal().sight,
+    mode:S.mode,env:Object.assign({},S.env)};
+  if(S.load==='custom')o.custom={mv:+$('cmv').value,bc:+$('cbc').value,model:$('cdm').value,wt:+$('cwt').value};
+  return o;
+}
+const num=(id,def)=>{const v=parseFloat($(id).value);return isNaN(v)?def:v;};
+function syncMode(){
+  document.body.classList.toggle('expert',S.mode==='expert');
+  document.querySelectorAll('.mbtn').forEach(b=>b.classList.toggle('on',b.dataset.mode===S.mode));
+}
+function syncEnvInputs(){
+  const e=S.env;
+  $('eTemp').value=e.temp;$('ePress').value=e.press;$('eAlt').value=e.alt;$('eHum').value=e.hum;
+  $('eWind').value=e.wind;$('eWdir').value=e.windDir;$('eMoaC').value=e.moaClick;$('eMilC').value=e.milClick;
+}
+function readEnvInputs(){
+  const e=S.env;
+  e.temp=num('eTemp',59);e.press=num('ePress',29.92);e.alt=num('eAlt',0);e.hum=num('eHum',50);
+  e.wind=num('eWind',0);e.windDir=num('eWdir',3);e.moaClick=num('eMoaC',0.25);e.milClick=num('eMilC',0.1);
+}
+function saveLast(){clearTimeout(lastTimer);lastTimer=setTimeout(()=>{try{localStorage.setItem(LS.last,JSON.stringify(snapshot()))}catch(e){}},400);}
+function buildProfSelect(sel){
+  $('prof').innerHTML='<option value="">— quick-select a saved rifle —</option>'+
+    RIFLES.map((r,i)=>'<option value="'+i+'"'+(i===sel?' selected':'')+'>'+r.name+'</option>').join('');
+}
+function applySetup(o){
+  if(!o||!CALS[o.cal])return false;
+  S.cal=o.cal;
+  const c=CALS[o.cal];
+  if(o.mode)S.mode=o.mode;
+  if(o.env)Object.assign(S.env,o.env);
+  if(o.load==='custom'&&o.custom){$('cmv').value=o.custom.mv;$('cbc').value=o.custom.bc;$('cdm').value=o.custom.model;$('cwt').value=o.custom.wt;}
+  S.load=o.load||'a';
+  S.zero=(o.zero!=null?o.zero:c.defZero);
+  S.yd=Math.min(o.yd!=null?o.yd:c.defYd, c.maxYd);
+  $('sh').value=(o.sh!=null?o.sh:c.sight);
+  $('yards').min=25;$('yards').max=c.maxYd;$('yards').value=S.yd;
+  $('yardn').min=25;$('yardn').max=c.maxYd;$('yardn').value=S.yd;
+  buildCalSelect();$('cal').value=S.cal;
+  buildLoadSelect();$('load').value=S.load;
+  $('custom').classList.toggle('show',S.load==='custom');
+  buildZeros();
+  syncMode();syncEnvInputs();
+  update();
+  return true;
+}
+
+/* ===== wiring ===== */
+buildCalSelect();
+if(!applySetup((()=>{try{return JSON.parse(localStorage.getItem(LS.last))}catch(e){return null}})())){applyCalDefaults();syncMode();syncEnvInputs();}
+buildProfSelect();
+
+document.querySelectorAll('.mbtn').forEach(b=>b.addEventListener('click',()=>{S.mode=b.dataset.mode;syncMode();update();}));
+['eTemp','ePress','eAlt','eHum','eWind','eWdir','eMoaC','eMilC'].forEach(id=>$(id).addEventListener('input',()=>{readEnvInputs();update();}));
+
+$('cal').addEventListener('change',e=>{S.cal=e.target.value;applyCalDefaults();update();$('prof').value='';});
+$('load').addEventListener('change',e=>{S.load=e.target.value;
+  $('custom').classList.toggle('show',S.load==='custom');
+  if(S.load==='custom'){const c=cal(),f=c.loads.a;$('cmv').value=f.mv;$('cbc').value=f.bc;$('cdm').value=f.model;$('cwt').value=f.wt;}
+  update();$('prof').value='';});
+['cmv','cbc','cdm','cwt'].forEach(id=>$(id).addEventListener('input',()=>{if(S.load==='custom')update();}));
+$('sh').addEventListener('input',()=>update());
+const syncYd=v=>{S.yd=Math.round(v);$('yardn').value=S.yd;$('yards').value=S.yd;update();};
+$('yards').addEventListener('input',e=>syncYd(+e.target.value));
+$('yardn').addEventListener('input',e=>{const v=+e.target.value;if(v>=25&&v<=cal().maxYd)syncYd(v);});
+
+$('prof').addEventListener('change',e=>{if(e.target.value!=='')applySetup(RIFLES[+e.target.value]);});
+$('profSave').addEventListener('click',()=>{
+  const name=prompt('Name this rifle  (e.g. "Tikka 6.5 CM · 100yd zero"):');
+  if(!name||!name.trim())return;
+  RIFLES.push(Object.assign({name:name.trim()},snapshot()));
+  saveRifles();buildProfSelect(RIFLES.length-1);
+});
+$('profDel').addEventListener('click',()=>{
+  const v=$('prof').value;if(v===''||!RIFLES[+v])return;
+  if(!confirm('Delete saved rifle "'+RIFLES[+v].name+'"?'))return;
+  RIFLES.splice(+v,1);saveRifles();buildProfSelect();
+});
+
+update();
+
+/* ===== PWA: register service worker for offline use (https/localhost only; no-op on file://) ===== */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
+}
+</script>
+</body>
+</html>
