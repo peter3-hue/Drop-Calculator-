@@ -139,6 +139,26 @@
   .windrow{display:none}
   body.expert .windrow{display:grid}
 
+  .fieldwarn{grid-column:1/-1;display:none;font-size:10.5px;color:var(--danger);line-height:1.55;padding-top:2px}
+  .fieldwarn.show{display:block}
+
+  .overlay{position:fixed;inset:0;background:rgba(8,11,14,.8);display:none;align-items:center;
+    justify-content:center;padding:20px;z-index:50}
+  .overlay.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);max-width:460px;width:100%;
+    max-height:86vh;overflow:auto;padding:20px 22px 22px;position:relative}
+  .modal h2{font-size:16px;color:#fff;letter-spacing:.03em}
+  .modal .msub{font-size:11px;color:var(--ret);letter-spacing:.16em;text-transform:uppercase;margin:4px 0 14px}
+  .modal h3{font-size:10px;color:var(--dim);letter-spacing:.14em;text-transform:uppercase;
+    margin:18px 0 9px;border-bottom:1px solid var(--line);padding-bottom:6px}
+  .modal p{font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:10px}
+  .mrow{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:4px}
+  .modal textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    font-family:inherit;font-size:11px;padding:9px;resize:vertical;min-height:52px;margin-bottom:8px}
+  .mstatus{font-size:11px;color:var(--trace);margin-top:12px;min-height:14px;line-height:1.5}
+  .mclose{position:absolute;top:12px;right:14px;background:none;border:none;color:var(--dim);
+    font-size:24px;line-height:1;cursor:pointer}
+
   @media (max-width:620px){
     .controls{grid-template-columns:1fr}
     .custom{grid-template-columns:1fr 1fr}
@@ -172,7 +192,8 @@
       <label for="prof">My Rifles</label>
       <select id="prof"></select>
     </div>
-    <button class="pbtn save" id="profSave" type="button">＋ Save current</button>
+    <button class="pbtn save" id="profSave" type="button">＋ Save</button>
+    <button class="pbtn" id="profData" type="button" title="Back up / move / import data">⋯</button>
     <button class="pbtn" id="profDel" type="button" title="Delete selected rifle">🗑</button>
   </div>
 
@@ -199,6 +220,7 @@
       <div class="ctl"><label for="cbc">Ballistic Coeff</label><input type="number" id="cbc" value="0.351" step="0.005" min="0.05" max="1.2"></div>
       <div class="ctl"><label for="cdm">Drag Model</label><select id="cdm"><option value="G7" selected>G7</option><option value="G1">G1</option></select></div>
       <div class="ctl"><label for="cwt">Bullet gr</label><input type="number" id="cwt" value="147" step="1" min="15" max="800"></div>
+      <div class="fieldwarn" id="cwarn"></div>
     </div>
 
     <div class="ctl rangerow">
@@ -297,6 +319,51 @@
     or loss arising from use, misuse, or reliance on this tool or its output. Not affiliated with,
     endorsed by, or sponsored by any firearms or ammunition manufacturer; product names and
     specifications are property of their respective owners and are used for identification only.
+  </div>
+</div>
+
+<div class="overlay" id="dataModal">
+  <div class="modal">
+    <button class="mclose" id="dataClose" type="button">&times;</button>
+    <h2>Data &amp; Backup</h2>
+    <div class="msub">Never lose your dope</div>
+
+    <h3>Back up your rifles</h3>
+    <p>Save your rifle profiles to a file, or copy a backup code. Restore it on a new phone any time — your data isn't trapped on one device.</p>
+    <div class="mrow">
+      <button class="pbtn save" id="btnExport" type="button">⬇ Export file</button>
+      <button class="pbtn" id="btnCopyCode" type="button">⧉ Copy backup code</button>
+    </div>
+
+    <h3>Restore / move to a new device</h3>
+    <div class="mrow"><button class="pbtn" id="btnImportFile" type="button">⬆ Import file</button></div>
+    <p>…or paste a backup code and restore:</p>
+    <textarea id="codeBox" placeholder="paste backup code here"></textarea>
+    <div class="mrow"><button class="pbtn" id="btnRestoreCode" type="button">Restore from code</button></div>
+
+    <h3>Import chronograph data</h3>
+    <p>Export a CSV from your LabRadar, Garmin Xero, or MagnetoSpeed and load it here — we'll average your shots into a custom load (avg velocity, SD, ES).</p>
+    <div class="mrow"><button class="pbtn" id="btnChrono" type="button">📈 Choose CSV</button></div>
+
+    <h3>Coming from Strelok?</h3>
+    <p>Save your rifles here, then Export to move them between devices — no app-store ban, no lost data. Direct Strelok backup import is on the way.</p>
+
+    <div class="mstatus" id="dataStatus"></div>
+    <input type="file" id="fileImport" accept=".json,application/json" style="display:none">
+    <input type="file" id="fileChrono" accept=".csv,text/csv,.txt" style="display:none">
+  </div>
+</div>
+
+<div class="overlay" id="welcome">
+  <div class="modal">
+    <h2>Welcome to Drop Calculator</h2>
+    <div class="msub">Range-ready ballistics</div>
+    <p><b style="color:var(--text)">1 ·</b> Pick your <b style="color:var(--ret)">cartridge</b> and <b style="color:var(--ret)">load</b>, set your <b style="color:var(--ret)">zero</b> and sight height.</p>
+    <p><b style="color:var(--text)">2 ·</b> Read your drop, MOA/MIL dial, and the full dope card. Drag the range slider for any distance.</p>
+    <p><b style="color:var(--text)">3 ·</b> Tap <b style="color:var(--ret)">EXPERT</b> (top right) for wind, atmosphere, and turret-click setup.</p>
+    <p><b style="color:var(--text)">4 ·</b> Hit <b style="color:var(--ret)">＋ Save</b> to store your rifle on this device, and <b style="color:var(--ret)">⋯</b> to back it up so you never lose it.</p>
+    <p style="color:#69727c;font-size:11px">Estimates only — always confirm your dope with live fire.</p>
+    <div class="mrow"><button class="pbtn save" id="welcomeGo" type="button">Got it — let's go</button></div>
   </div>
 </div>
 
@@ -554,6 +621,7 @@ function update(){
 
   $('liveBadge').textContent=eo?('CUSTOM ATM · DA '+Math.round(eo.da).toLocaleString()+' ft'):'G7/G1 RK4 · STD ATMOSPHERE';
   $('warn').classList.toggle('show', p.mv>A*1.2 && v<A*1.2);
+  validateCustom();
   drawChart();
   drawDope();
   saveLast();
@@ -767,6 +835,88 @@ $('profDel').addEventListener('click',()=>{
   if(!confirm('Delete saved rifle "'+RIFLES[+v].name+'"?'))return;
   RIFLES.splice(+v,1);saveRifles();buildProfSelect();
 });
+
+/* ===== data backup / migration / chrono import / onboarding ===== */
+const setStatus=m=>{const s=$('dataStatus');if(s)s.textContent=m||'';};
+const openM=id=>$(id).classList.add('show');
+const closeM=id=>$(id).classList.remove('show');
+function exportData(){
+  const blob=new Blob([JSON.stringify({app:'drop-calculator',v:1,rifles:RIFLES},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='my-rifles.dropcalc.json';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  setStatus('Exported '+RIFLES.length+' rifle'+(RIFLES.length===1?'':'s')+' to a file.');
+}
+const encodeCode=()=>btoa(unescape(encodeURIComponent(JSON.stringify({v:1,rifles:RIFLES}))));
+function ingest(obj){
+  if(!obj||!Array.isArray(obj.rifles))throw 0;
+  RIFLES=obj.rifles.filter(r=>r&&r.cal&&CALS[r.cal]);
+  saveRifles();buildProfSelect();return RIFLES.length;
+}
+function restoreFromText(txt,asCode){
+  let obj;
+  try{obj=JSON.parse(asCode?decodeURIComponent(escape(atob(txt.trim()))):txt);}
+  catch(e){setStatus("That doesn't look like a valid backup.");return;}
+  try{const n=ingest(obj);setStatus('Restored '+n+' rifle'+(n===1?'':'s')+'. Pick one from the My Rifles menu.');}
+  catch(e){setStatus('No rifles found in that backup.');}
+}
+function parseChrono(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(!lines.length)return null;
+  const delim=lines[0].indexOf('\t')>=0?'\t':(lines[0].indexOf(';')>=0?';':',');
+  const rows=lines.map(l=>l.split(delim).map(s=>s.trim().replace(/^"|"$/g,'')));
+  const hdr=rows[0].map(s=>s.toLowerCase());
+  let col=-1, ms=false;
+  hdr.forEach((h,i)=>{if(col<0&&/(vel|speed|fps|f\/s|v0|muzzle|m\/s|mps)/.test(h)){col=i;if(/m\/s|mps/.test(h))ms=true;}});
+  let vals=[];
+  if(col>=0)for(let r=1;r<rows.length;r++){const v=parseFloat(rows[r][col]);if(!isNaN(v)&&v>0)vals.push(v);}
+  if(!vals.length)for(const row of rows)for(const c of row){const v=parseFloat(c);if(!isNaN(v)&&v>=250&&v<=5000)vals.push(v);}
+  vals=vals.filter(v=>v>=150&&v<=6000);
+  if(!vals.length)return null;
+  if(ms)vals=vals.map(v=>v*3.28084);
+  const n=vals.length, mean=vals.reduce((a,b)=>a+b,0)/n;
+  const sd=Math.sqrt(vals.reduce((a,b)=>a+(b-mean)*(b-mean),0)/(n>1?n-1:1));
+  return {n,mean:Math.round(mean),sd:+sd.toFixed(1),es:+(Math.max(...vals)-Math.min(...vals)).toFixed(1)};
+}
+function applyChrono(res){
+  if(!res){setStatus("Couldn't find shot velocities in that file — make sure it's a chronograph CSV.");return;}
+  S.load='custom';buildLoadSelect();$('load').value='custom';$('custom').classList.add('show');
+  const f=cal().loads.a||{bc:0.3,wt:150,model:'G7'};
+  if(!+$('cbc').value)$('cbc').value=f.bc;
+  if(!+$('cwt').value)$('cwt').value=f.wt;
+  if(!$('cdm').value)$('cdm').value=f.model;
+  $('cmv').value=res.mean;$('prof').value='';update();
+  setStatus('Imported '+res.n+' shots · avg '+res.mean+' fps · SD '+res.sd+' · ES '+res.es+'. Applied to a Custom load — set the bullet BC & weight, then ＋ Save it as a rifle.');
+}
+function validateCustom(){
+  const w=$('cwarn');if(!w)return;
+  if(S.load!=='custom'){w.classList.remove('show');return;}
+  const mv=+$('cmv').value,bc=+$('cbc').value,model=$('cdm').value,wt=+$('cwt').value,m=[];
+  if(model==='G7'&&bc>0.45)m.push('⚠ BC '+bc+' looks like a G1 number — G7 BCs are usually ~0.15–0.40. Wrong model badly skews your dope.');
+  if(model==='G1'&&bc>0&&bc<0.1)m.push('⚠ BC '+bc+' is low for G1 — did you mean to pick G7?');
+  if(mv&&(mv<600||mv>4500))m.push('⚠ Muzzle velocity '+mv+' fps is outside the usual range.');
+  if(bc&&(bc<0.02||bc>1.2))m.push('⚠ BC '+bc+' is outside the plausible range.');
+  if(wt&&(wt<10||wt>800))m.push('⚠ Bullet weight '+wt+' gr is unusual.');
+  w.innerHTML=m.join('<br>');w.classList.toggle('show',m.length>0);
+}
+
+$('profData').addEventListener('click',()=>{setStatus('');openM('dataModal');});
+$('dataClose').addEventListener('click',()=>closeM('dataModal'));
+$('dataModal').addEventListener('click',e=>{if(e.target.id==='dataModal')closeM('dataModal');});
+$('btnExport').addEventListener('click',exportData);
+$('btnCopyCode').addEventListener('click',()=>{
+  const code=encodeCode();$('codeBox').value=code;
+  if(navigator.clipboard&&navigator.clipboard.writeText)
+    navigator.clipboard.writeText(code).then(()=>setStatus('Backup code copied — paste it somewhere safe.'),()=>setStatus('Code shown below — select and copy it.'));
+  else setStatus('Code shown below — select and copy it.');
+});
+$('btnImportFile').addEventListener('click',()=>$('fileImport').click());
+$('fileImport').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>restoreFromText(r.result,false);r.readAsText(f);e.target.value='';});
+$('btnRestoreCode').addEventListener('click',()=>{const t=$('codeBox').value;t.trim()?restoreFromText(t,true):setStatus('Paste a backup code first.');});
+$('btnChrono').addEventListener('click',()=>$('fileChrono').click());
+$('fileChrono').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>applyChrono(parseChrono(r.result));r.readAsText(f);e.target.value='';});
+$('welcomeGo').addEventListener('click',()=>{closeM('welcome');try{localStorage.setItem('dropcalc.seen','1')}catch(e){}});
+if(!(()=>{try{return localStorage.getItem('dropcalc.seen')}catch(e){return '1'}})())openM('welcome');
 
 update();
 

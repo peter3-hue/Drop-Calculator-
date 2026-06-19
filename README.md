@@ -18,6 +18,12 @@ counts), retained velocity, energy, time of flight, a full dope card, and a traj
   transonic ranges flagged.
 - **My Rifles** — save/name/switch rifle profiles (cartridge, load, zero, sight height, turret clicks,
   custom chrono loads) in the browser; remembers your last setup.
+- **Never lose your data** — back up all profiles to a file or a copy/paste backup code, and restore on
+  any device. Your dope isn't trapped on one phone or behind an app store.
+- **Chronograph import** — load a CSV from a LabRadar, Garmin Xero, or MagnetoSpeed; it averages your
+  shots (mean velocity, SD, ES) into a custom load.
+- **Guided onboarding + input validation** — a first-run quick start, plus inline warnings that catch
+  the classic mistakes (e.g. a G1 BC entered against the G7 model).
 - **Simple ⇄ Expert mode:**
   - *Simple* — the quick scope adjustment.
   - *Expert* — adds **atmosphere** (temperature, pressure, altitude, humidity → air density + density

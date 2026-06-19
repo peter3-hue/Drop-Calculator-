@@ -1,7 +1,7 @@
 /* Drop Calculator service worker — offline app shell.
    Strategy: network-first for the page (always get the latest when online),
    cache-first for static assets (icons/manifest). Fully usable offline at the range. */
-const CACHE = 'dropcalc-v2';
+const CACHE = 'dropcalc-v3';
 const ASSETS = [
   './',
   './index.html',
