@@ -25,6 +25,9 @@ counts), retained velocity, energy, time of flight, a full dope card, and a traj
   shots (mean velocity, SD, ES) into a custom load.
 - **Guided onboarding + input validation** — a first-run quick start, plus inline warnings that catch
   the classic mistakes (e.g. a G1 BC entered against the G7 model).
+- **Free vs Pro** — Free: Simple mode, all cartridges, dope card, save/backup. **Pro** (one-time):
+  Expert mode (wind + atmosphere), **truing** (correct the solver to your real drops), and dope-card
+  **export/print** (PDF/CSV/clipboard). Unlock is a Lemon Squeezy license key, validated client-side.
 - **Simple ⇄ Expert mode:**
   - *Simple* — the quick scope adjustment.
   - *Expert* — adds **atmosphere** (temperature, pressure, altitude, humidity → air density + density

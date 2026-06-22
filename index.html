@@ -158,6 +158,13 @@
   .mstatus{font-size:11px;color:var(--trace);margin-top:12px;min-height:14px;line-height:1.5}
   .mclose{position:absolute;top:12px;right:14px;background:none;border:none;color:var(--dim);
     font-size:24px;line-height:1;cursor:pointer}
+  .prolist{margin:0 0 6px;padding-left:18px}
+  .prolist li{font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:7px}
+  .prolist b{color:var(--text)}
+  .trow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:8px}
+  .trow .ctl{margin:0}
+  .dopehead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+  .dopebtn{font-size:11px;padding:6px 11px}
 
   @media (max-width:620px){
     .controls{grid-template-columns:1fr}
@@ -273,6 +280,10 @@
           <select id="eMilC"><option value="0.1">0.1 MIL</option><option value="0.05">0.05 MIL</option></select></div>
       </div>
     </div>
+    <div class="envgroup">
+      <div class="envhead">Truing</div>
+      <button class="pbtn" id="btnTrue" type="button">🎯 True my dope to real drops</button>
+    </div>
   </div>
 
   <div class="results">
@@ -293,7 +304,10 @@
   </div>
 
   <div class="dopewrap">
-    <div class="chartlabel">Dope Card &mdash; <span id="dopeTitle"></span>, <span id="dopeZero"></span> zero</div>
+    <div class="dopehead">
+      <div class="chartlabel" style="margin-bottom:0">Dope Card &mdash; <span id="dopeTitle"></span>, <span id="dopeZero"></span> zero</div>
+      <button class="pbtn dopebtn" id="btnExportOpen" type="button">⎙ Export</button>
+    </div>
     <div class="dopescroll"><table class="dope" id="dope"></table></div>
   </div>
 
@@ -364,6 +378,59 @@
     <p><b style="color:var(--text)">4 ·</b> Hit <b style="color:var(--ret)">＋ Save</b> to store your rifle on this device, and <b style="color:var(--ret)">⋯</b> to back it up so you never lose it.</p>
     <p style="color:#69727c;font-size:11px">Estimates only — always confirm your dope with live fire.</p>
     <div class="mrow"><button class="pbtn save" id="welcomeGo" type="button">Got it — let's go</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="proModal">
+  <div class="modal">
+    <button class="mclose" id="proClose" type="button">&times;</button>
+    <h2>Unlock Pro</h2>
+    <div class="msub">one-time $10 · yours forever</div>
+    <p>Pro turns the field calculator into a precision tool:</p>
+    <ul class="prolist">
+      <li><b>Expert mode</b> — wind drift + full atmosphere (temperature, pressure, altitude, humidity, density altitude) and configurable turret clicks</li>
+      <li><b>Truing</b> — correct the solver to your real measured drops</li>
+      <li><b>Export &amp; print</b> — dope cards to PDF, CSV, or clipboard</li>
+    </ul>
+    <div class="mrow"><button class="pbtn save" id="proBuy" type="button">Get Pro — $10</button></div>
+    <h3>Already purchased?</h3>
+    <textarea id="proKey" placeholder="paste your license key"></textarea>
+    <div class="mrow"><button class="pbtn" id="proActivate" type="button">Activate</button></div>
+    <div class="mstatus" id="proStatus"></div>
+  </div>
+</div>
+
+<div class="overlay" id="exportModal">
+  <div class="modal">
+    <button class="mclose" id="exportClose" type="button">&times;</button>
+    <h2>Export Dope Card</h2>
+    <div class="msub">take it to the range</div>
+    <p>Your current rifle, load, zero, and conditions are included in the header.</p>
+    <div class="mrow">
+      <button class="pbtn save" id="btnPrint" type="button">🖨 Print / Save PDF</button>
+      <button class="pbtn" id="btnCsv" type="button">⬇ CSV</button>
+      <button class="pbtn" id="btnCopyDope" type="button">⧉ Copy text</button>
+    </div>
+    <div class="mstatus" id="exportStatus"></div>
+  </div>
+</div>
+
+<div class="overlay" id="trueModal">
+  <div class="modal">
+    <button class="mclose" id="trueClose" type="button">&times;</button>
+    <h2>True Your Dope</h2>
+    <div class="msub">match the solver to your real drops</div>
+    <p>Came up short or long at a known distance? Enter what you actually observed and we'll correct the muzzle velocity for the current load.</p>
+    <div class="trow">
+      <div class="ctl"><label for="trueDist">Distance (yd)</label><input type="number" id="trueDist" value="500" min="25" step="25"></div>
+      <div class="ctl"><label for="trueVal">Observed</label><input type="number" id="trueVal" step="0.1"></div>
+      <div class="ctl"><label for="trueUnit">Unit</label><select id="trueUnit"><option value="moa">MOA up</option><option value="mil">MIL up</option><option value="in">Drop (in)</option></select></div>
+    </div>
+    <div class="mrow">
+      <button class="pbtn save" id="trueCalc" type="button">Calculate</button>
+      <button class="pbtn" id="trueApply" type="button" style="display:none">Apply trued velocity</button>
+    </div>
+    <div class="mstatus" id="trueResult"></div>
   </div>
 </div>
 
@@ -717,6 +784,14 @@ const S={cal:'prc65',load:'a',zero:100,yd:350,cache:{},mode:'simple',
 const $=id=>document.getElementById(id);
 const cal=()=>CALS[S.cal];
 
+/* ===== Pro / monetization ===== */
+const PRO_PRICE='$10';
+const LS_CHECKOUT_URL=''; /* TODO: paste your Lemon Squeezy buy link here (e.g. https://store.lemonsqueezy.com/buy/xxxx) */
+let PRO=(()=>{try{return localStorage.getItem('dropcalc.pro')==='1'}catch(e){return false}})();
+const isPro=()=>PRO;
+function setPro(on){PRO=!!on;try{localStorage.setItem('dropcalc.pro',PRO?'1':'0')}catch(e){}
+  document.body.classList.toggle('pro',PRO);}
+
 function params(){
   if(S.load==='custom')return{name:'Custom',mv:+$('cmv').value||2700,bc:+$('cbc').value||0.3,
     model:$('cdm').value,wt:+$('cwt').value||150};
@@ -788,31 +863,35 @@ function update(){
 
 /* ===== dope card (full range table — reuses the same trajectory + formulas) ===== */
 const fmtDial=x=>Math.abs(x)<0.05?'0.0':(x>0?x.toFixed(1):'−'+(-x).toFixed(1));
-function drawDope(){
-  const c=cal(), p=params(), sel=getTraj(S.load,p,S.zero);
+const fmtWind=x=>Math.abs(x)<0.05?'0':Math.abs(x).toFixed(1)+(x>0?' R':' L');
+function dopeData(){
+  const c=cal(), p=params(), sel=getTraj(S.load,p,S.zero), eo=envOpt();
   const end=Math.min(c.maxYd, sel.reached);
   const step=end<=300?25:end<=600?50:100;
   const yds=[];
   for(let y=step;y<=end;y+=step)yds.push(y);
   if(end>step && yds[yds.length-1]!==end)yds.push(end);
-  const cur=Math.min(Math.max(S.yd,25),end);
-  const nearest=yds.reduce((a,b)=>Math.abs(b-cur)<Math.abs(a-cur)?b:a, yds[0]);
-  const wind=S.mode==='expert' && sel.drift;
-  const fmtWind=x=>Math.abs(x)<0.05?'0':Math.abs(x).toFixed(1)+(x>0?' R':' L');
+  const rows=yds.map(y=>{const drop=sel.drop[y], v=sel.vel[y];
+    return {yd:y, drop, moa:-drop/(y/100*1.0472), mil:-drop/(y/100*3.6),
+      vel:Math.round(v), en:Math.round(p.wt*v*v/450436), wind:sel.drift?sel.drift[y]:0, trans:v<A*1.2};});
+  return {c, p, eo, rows, wind:(S.mode==='expert' && !!sel.drift)};
+}
+function drawDope(){
+  const {p, rows, wind}=dopeData();
+  const cur=Math.min(Math.max(S.yd,25), rows.length?rows[rows.length-1].yd:25);
+  const nearest=rows.reduce((a,b)=>Math.abs(b.yd-cur)<Math.abs(a.yd-cur)?b:a, rows[0]||{yd:0}).yd;
   const head='<thead><tr><th>Yards</th><th>Drop in</th>'+(wind?'<th>Wind in</th>':'')+
     '<th>MOA</th><th>MIL</th><th>Vel fps</th><th>Energy</th></tr></thead>';
   let body='';
-  for(const y of yds){
-    const drop=sel.drop[y], v=sel.vel[y];
-    const moa=-drop/(y/100*1.0472), mil=-drop/(y/100*3.6), en=p.wt*v*v/450436;
-    body+='<tr'+(y===nearest?' class="here"':'')+'>'+
-      '<td>'+y+'</td>'+
-      '<td>'+(drop>=0?'+':'')+drop.toFixed(1)+'</td>'+
-      (wind?'<td class="windcol">'+fmtWind(sel.drift[y])+'</td>':'')+
-      '<td class="dial">'+fmtDial(moa)+'</td>'+
-      '<td class="dial">'+fmtDial(mil)+'</td>'+
-      '<td'+(v<A*1.2?' class="trans"':'')+'>'+Math.round(v).toLocaleString()+'</td>'+
-      '<td>'+Math.round(en).toLocaleString()+'</td></tr>';
+  for(const r of rows){
+    body+='<tr'+(r.yd===nearest?' class="here"':'')+'>'+
+      '<td>'+r.yd+'</td>'+
+      '<td>'+(r.drop>=0?'+':'')+r.drop.toFixed(1)+'</td>'+
+      (wind?'<td class="windcol">'+fmtWind(r.wind)+'</td>':'')+
+      '<td class="dial">'+fmtDial(r.moa)+'</td>'+
+      '<td class="dial">'+fmtDial(r.mil)+'</td>'+
+      '<td'+(r.trans?' class="trans"':'')+'>'+r.vel.toLocaleString()+'</td>'+
+      '<td>'+r.en.toLocaleString()+'</td></tr>';
   }
   $('dope').innerHTML=head+'<tbody>'+body+'</tbody>';
   $('dopeTitle').textContent=p.name.split('—')[0].trim();
@@ -923,8 +1002,12 @@ function snapshot(){
 }
 const num=(id,def)=>{const v=parseFloat($(id).value);return isNaN(v)?def:v;};
 function syncMode(){
+  if(S.mode==='expert'&&!isPro())S.mode='simple';
   document.body.classList.toggle('expert',S.mode==='expert');
-  document.querySelectorAll('.mbtn').forEach(b=>b.classList.toggle('on',b.dataset.mode===S.mode));
+  document.querySelectorAll('.mbtn').forEach(b=>{
+    b.classList.toggle('on',b.dataset.mode===S.mode);
+    if(b.dataset.mode==='expert')b.textContent=isPro()?'EXPERT':'EXPERT 🔒';
+  });
 }
 function syncEnvInputs(){
   const e=S.env;
@@ -968,7 +1051,10 @@ buildCalSelect();
 if(!applySetup((()=>{try{return JSON.parse(localStorage.getItem(LS.last))}catch(e){return null}})())){applyCalDefaults();syncMode();syncEnvInputs();}
 buildProfSelect();
 
-document.querySelectorAll('.mbtn').forEach(b=>b.addEventListener('click',()=>{S.mode=b.dataset.mode;syncMode();update();}));
+document.querySelectorAll('.mbtn').forEach(b=>b.addEventListener('click',()=>{
+  if(b.dataset.mode==='expert'&&!isPro()){openM('proModal');return;}
+  S.mode=b.dataset.mode;syncMode();update();
+}));
 ['eTemp','ePress','eAlt','eHum','eWind','eWdir','eMoaC','eMilC'].forEach(id=>$(id).addEventListener('input',()=>{readEnvInputs();update();}));
 
 $('cal').addEventListener('change',e=>{S.cal=e.target.value;applyCalDefaults();update();$('prof').value='';});
@@ -1077,6 +1163,120 @@ $('fileChrono').addEventListener('change',e=>{const f=e.target.files[0];if(!f)re
 $('welcomeGo').addEventListener('click',()=>{closeM('welcome');try{localStorage.setItem('dropcalc.seen','1')}catch(e){}});
 if(!(()=>{try{return localStorage.getItem('dropcalc.seen')}catch(e){return '1'}})())openM('welcome');
 
+/* ===== Pro unlock (Lemon Squeezy license — client-side, no server) ===== */
+const setProStatus=m=>{const s=$('proStatus');if(s)s.textContent=m||'';};
+$('proClose').addEventListener('click',()=>closeM('proModal'));
+$('proModal').addEventListener('click',e=>{if(e.target.id==='proModal')closeM('proModal');});
+$('proBuy').addEventListener('click',()=>{
+  if(LS_CHECKOUT_URL){window.open(LS_CHECKOUT_URL,'_blank');setProStatus('After checkout, paste your license key below to unlock.');}
+  else setProStatus('Checkout isn\'t set up yet — coming soon.');
+});
+$('proActivate').addEventListener('click',async()=>{
+  const key=($('proKey').value||'').trim();
+  if(!key){setProStatus('Paste your license key first.');return;}
+  setProStatus('Checking…');
+  try{
+    const res=await fetch('https://api.lemonsqueezy.com/v1/licenses/activate',{
+      method:'POST',headers:{'Accept':'application/json','Content-Type':'application/x-www-form-urlencoded'},
+      body:'license_key='+encodeURIComponent(key)+'&instance_name=dropcalc'});
+    const j=await res.json();
+    if(j&&(j.activated||(j.license_key&&j.license_key.status==='active'))){
+      setPro(true);syncMode();update();
+      setProStatus('Unlocked — thank you! Pro is active on this device.');
+      setTimeout(()=>closeM('proModal'),1400);
+    } else setProStatus((j&&j.error)?j.error:'That key could not be activated — double-check it and try again.');
+  }catch(e){setProStatus('Could not reach the license server — check your connection and try again.');}
+});
+
+/* ===== Export / print dope card (Pro) ===== */
+const setExpStatus=m=>{const s=$('exportStatus');if(s)s.textContent=m||'';};
+function exportTitleLines(){
+  const {c,p,eo}=dopeData();
+  const L=[(p.name||'').split('—')[0].trim()+' — '+c.name,
+    'Zero '+S.zero+' yd · Sight '+sightH()+'" · clicks '+S.env.moaClick+' MOA / '+S.env.milClick+' MIL'];
+  L.push(eo?('Temp '+S.env.temp+'°F · '+S.env.press+' inHg · '+S.env.alt+' ft · '+S.env.hum+'% RH · DA '+Math.round(eo.da)+' ft · Wind '+S.env.wind+" mph @"+S.env.windDir+" o'clock")
+           :'Standard atmosphere (59°F / 29.92 inHg / sea level) · no wind');
+  return L;
+}
+function dopeCSV(){
+  const {rows,wind}=dopeData();
+  const head=['Yards','Drop_in'].concat(wind?['Wind_in']:[],['MOA','MIL','Vel_fps','Energy_ftlb']);
+  const out=[exportTitleLines().join(' | '),head.join(',')];
+  for(const r of rows)out.push([r.yd,r.drop.toFixed(1)].concat(wind?[r.wind.toFixed(1)]:[],[r.moa.toFixed(2),r.mil.toFixed(2),r.vel,r.en]).join(','));
+  return out.join('\n');
+}
+function dopeText(){
+  const {rows,wind}=dopeData();
+  const cols=['Yds','Drop',(wind?'Wind':null),'MOA','MIL','Vel','Energy'].filter(Boolean);
+  const data=rows.map(r=>[String(r.yd),(r.drop>=0?'+':'')+r.drop.toFixed(1),(wind?fmtWind(r.wind):null),fmtDial(r.moa),fmtDial(r.mil),String(r.vel),String(r.en)].filter(x=>x!==null));
+  const w=cols.map((c,i)=>Math.max(c.length,...data.map(r=>r[i].length)));
+  const fmt=row=>row.map((x,i)=>x.padStart(w[i])).join('  ');
+  return exportTitleLines().join('\n')+'\n\n'+fmt(cols)+'\n'+data.map(fmt).join('\n')+'\n\nEstimates — verify with live fire.';
+}
+function printDope(){
+  const {rows,wind}=dopeData(), th=['Yards','Drop (in)',(wind?'Wind (in)':null),'MOA','MIL','Vel (fps)','Energy'].filter(Boolean), t=exportTitleLines();
+  let h='<!doctype html><html><head><meta charset="utf-8"><title>Dope Card</title><style>'+
+    'body{font-family:ui-monospace,Menlo,Consolas,monospace;color:#111;padding:24px}h1{font-size:17px;margin:0 0 6px}'+
+    '.s{color:#555;font-size:12px;margin:2px 0}table{border-collapse:collapse;width:100%;margin-top:14px;font-size:13px}'+
+    'th,td{border:1px solid #bbb;padding:6px 9px;text-align:right}th{background:#eee}td:first-child,th:first-child{text-align:left}'+
+    '.w{color:#b00}.f{margin-top:14px;color:#555;font-size:11px}</style></head><body>';
+  h+='<h1>'+t[0]+'</h1>';for(let i=1;i<t.length;i++)h+='<div class="s">'+t[i]+'</div>';
+  h+='<table><thead><tr>'+th.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>';
+  for(const r of rows){
+    const cells=[r.yd,(r.drop>=0?'+':'')+r.drop.toFixed(1),(wind?fmtWind(r.wind):null),fmtDial(r.moa),fmtDial(r.mil),r.vel.toLocaleString(),r.en.toLocaleString()].filter(x=>x!==null);
+    h+='<tr'+(r.trans?' class="w"':'')+'>'+cells.map(c=>'<td>'+c+'</td>').join('')+'</tr>';
+  }
+  h+='</tbody></table><div class="f">Estimates — verify with live fire. Generated by Drop Calculator.</div></body></html>';
+  const win=window.open('','_blank');
+  if(!win){setExpStatus('Allow pop-ups to print / save as PDF.');return;}
+  win.document.write(h);win.document.close();win.focus();setTimeout(()=>{try{win.print()}catch(e){}},350);
+  setExpStatus('Opened a printable card — use the print dialog to Save as PDF.');
+}
+$('btnExportOpen').addEventListener('click',()=>{if(!isPro()){openM('proModal');return;}setExpStatus('');openM('exportModal');});
+$('exportClose').addEventListener('click',()=>closeM('exportModal'));
+$('exportModal').addEventListener('click',e=>{if(e.target.id==='exportModal')closeM('exportModal');});
+$('btnPrint').addEventListener('click',printDope);
+$('btnCsv').addEventListener('click',()=>{
+  const blob=new Blob([dopeCSV()],{type:'text/csv'}),a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download='dope-card.csv';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);setExpStatus('Downloaded dope-card.csv');
+});
+$('btnCopyDope').addEventListener('click',()=>{
+  const txt=dopeText();
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(()=>setExpStatus('Dope card copied to clipboard.'),()=>setExpStatus('Copy failed — try CSV.'));
+  else setExpStatus('Clipboard unavailable — use CSV.');
+});
+
+/* ===== Truing (Pro) — solve muzzle velocity from a real observed drop ===== */
+let truedResult=null;
+const setTrueStatus=m=>{const s=$('trueResult');if(s)s.innerHTML=m||'';};
+$('btnTrue').addEventListener('click',()=>{if(!isPro()){openM('proModal');return;}truedResult=null;$('trueApply').style.display='none';setTrueStatus('');openM('trueModal');});
+$('trueClose').addEventListener('click',()=>closeM('trueModal'));
+$('trueModal').addEventListener('click',e=>{if(e.target.id==='trueModal')closeM('trueModal');});
+$('trueCalc').addEventListener('click',()=>{
+  const dist=+$('trueDist').value, val=+$('trueVal').value, unit=$('trueUnit').value;
+  if(!(dist>=25)||isNaN(val)){setTrueStatus('Enter a distance (≥25 yd) and what you observed.');$('trueApply').style.display='none';return;}
+  const p=params(), eo=envOpt(), za=eo?{dr:eo.dr,sos:eo.sos}:undefined, full=eo||undefined, sh=sightH();
+  const target = unit==='in' ? -Math.abs(val) : unit==='moa' ? -val*(dist/100*1.0472) : -val*(dist/100*3.6);
+  const dropAt=mv=>{const ang=zeroAngle(mv,p.bc,p.model,sh,S.zero,za);return solve(mv,p.bc,p.model,sh,ang,dist+2,full).drop[dist];};
+  let lo=600, hi=4500;
+  if(dropAt(hi)<target){setTrueStatus('Even at max velocity the drop is greater than that — check the distance and units.');$('trueApply').style.display='none';return;}
+  if(dropAt(lo)>target){setTrueStatus('That implies an extremely slow load — check the distance and units.');$('trueApply').style.display='none';return;}
+  for(let i=0;i<44;i++){const mid=(lo+hi)/2;(dropAt(mid)<target)?lo=mid:hi=mid;}
+  const mv=Math.round((lo+hi)/2);
+  truedResult={mv,bc:p.bc,wt:p.wt,model:p.model};
+  const unitLabel = unit==='in' ? Math.abs(val)+'" drop' : val+' '+unit.toUpperCase();
+  setTrueStatus('Trued muzzle velocity: <b style="color:var(--ret)">'+mv+' fps</b>'+(p.name!=='Custom'?' (catalog '+p.mv+')':'')+'<br>Your '+unitLabel+' at '+dist+' yd now matches the solver.');
+  $('trueApply').style.display='inline-block';
+});
+$('trueApply').addEventListener('click',()=>{
+  if(!truedResult)return;
+  S.load='custom';buildLoadSelect();$('load').value='custom';$('custom').classList.add('show');
+  $('cmv').value=truedResult.mv;$('cbc').value=truedResult.bc;$('cwt').value=truedResult.wt;$('cdm').value=truedResult.model;
+  $('prof').value='';update();closeM('trueModal');
+});
+
+document.body.classList.toggle('pro',PRO);
 update();
 
 /* ===== PWA: register service worker for offline use (https/localhost only; no-op on file://) ===== */
