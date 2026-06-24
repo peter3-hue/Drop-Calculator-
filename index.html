@@ -905,79 +905,83 @@ const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim
 const niceStep=r=>{const raw=r/6,p=Math.pow(10,Math.floor(Math.log10(raw)));
   for(const m of[1,2,2.5,5,10])if(raw<=m*p)return m*p; return 10*p;};
 
-/* standing marksman silhouette, feet anchored at (x,y), aiming right */
-function shooter(x,y){
+/* standing marksman, shoulder pivot at (px,py)=line of sight; rifle tilts up by `tilt` deg */
+function shooter(px,py,tilt){
   const C='#d7dde3', steel='#aab2ba';
-  const g=el('g',{transform:'translate('+x.toFixed(1)+','+y.toFixed(1)+')',
-    fill:'none',stroke:C,'stroke-width':4.2,'stroke-linecap':'round','stroke-linejoin':'round'});
+  const g=el('g',{transform:'translate('+px.toFixed(1)+','+py.toFixed(1)+')',
+    fill:'none',stroke:C,'stroke-width':4,'stroke-linecap':'round','stroke-linejoin':'round'});
   g.innerHTML=
-    '<path d="M-6 0 L-2 -22"/>'+                                   /* back leg */
-    '<path d="M5 0 L1 -22"/>'+                                     /* front leg */
-    '<path d="M-1 -21 L-3 -41" stroke-width="7"/>'+               /* torso */
-    '<circle cx="-4" cy="-46" r="5" fill="'+C+'" stroke="none"/>'+ /* head */
-    '<path d="M-3 -38 L13 -33"/>'+                                 /* front arm to fore-grip */
-    '<path d="M-3 -36 L4 -33"/>'+                                  /* rear arm to trigger */
-    '<path d="M-7 -36 L24 -32.5" stroke="'+steel+'" stroke-width="3"/>'+ /* rifle: stock to muzzle */
-    '<rect x="6" y="-37" width="8" height="3" rx="1" fill="'+steel+'" stroke="none"/>'; /* scope */
+    '<circle cx="-1" cy="-13" r="4.6" fill="'+C+'" stroke="none"/>'+   /* head */
+    '<path d="M-1 -8.5 L0 -1"/>'+                                      /* neck */
+    '<path d="M0 -1 L1 16" stroke-width="6.5"/>'+                      /* torso */
+    '<path d="M1 15 L-6 33"/>'+                                        /* back leg */
+    '<path d="M1 15 L8 33"/>'+                                         /* front leg */
+    '<g transform="rotate('+(-tilt).toFixed(1)+' 0 0)">'+             /* rifle tilts up to aim higher */
+      '<path d="M-9 0 L30 0" stroke="'+steel+'" stroke-width="3"/>'+   /* barrel to muzzle */
+      '<rect x="9" y="-3.3" width="8" height="2.9" rx="1" fill="'+steel+'" stroke="none"/>'+ /* scope */
+      '<path d="M1 3 L16 0.5"/>'+                                      /* front arm to fore-grip */
+      '<path d="M0 3 L4 0.5"/>'+                                       /* rear arm */
+    '</g>';
   return g;
 }
 
 function drawChart(){
   const svg=$('chart');svg.innerHTML='';
-  const W=840,H=360,mL=52,mR=22,mT=22,mB=44,pw=W-mL-mR,ph=H-mT-mB;
+  const W=840,H=360,mL=52,mR=22,mT=26,mB=44,pw=W-mL-mR,ph=H-mT-mB;
   const c=cal(), p=params();
   const sel=getTraj(S.load,p,S.zero);
   const others=Object.keys(c.loads).filter(k=>S.load==='custom'||k!==S.load)
     .map(k=>({k,name:c.loads[k].name.split('—')[0].trim(),tr:getTraj(k,c.loads[k],S.zero)}));
-
-  const x0=Math.min(...c.zeros, 25)>=100?100:25, x1=c.chartMax;
-  const allTr=[sel,...others.map(o=>o.tr)];
-  let yMin=Math.min(...allTr.map(tr=>tr.drop[Math.min(x1,tr.reached)]))*1.08;
-  let yMaxv=Math.max(2,...allTr.map(tr=>{let m=0;for(let x=x0;x<=Math.min(x1,tr.reached);x+=5)m=Math.max(m,tr.drop[x]);return m;}))*1.3;
-  if(yMin>-10)yMin=-10;
-  yMaxv=Math.max(yMaxv,-yMin*0.10);                            /* headroom above the sight line */
-  const X=x=>mL+(x-x0)/(x1-x0)*pw, Y=y=>mT+(yMaxv-y)/(yMaxv-yMin)*ph;
   const ret=css('--ret'), dim=css('--dim'), line=css('--line'), bg=css('--bg');
+
+  /* graph spans 0 -> selected distance and rescales to it */
+  const D=Math.min(Math.max(S.yd,10), Math.min(c.maxYd, sel.reached));
+  const x0=0, x1=Math.max(D,20);
+  let dmin=0, dmax=0;
+  for(let x=x0;x<=x1;x++){const v=sel.drop[x]; if(v<dmin)dmin=v; if(v>dmax)dmax=v;}
+  others.forEach(o=>{const lim=Math.min(x1,o.tr.reached);for(let x=x0;x<=lim;x++){const v=o.tr.drop[x];if(v<dmin)dmin=v;if(v>dmax)dmax=v;}});
+  dmin*=1.10; if(dmin>-1)dmin=-1;
+  const h0=30/ph;                                              /* pixel headroom above sight line for the shooter's head */
+  const yMaxv=Math.max(dmax*1.15, h0*(-dmin)/(1-h0), 0.4), yMin=dmin;
+  const X=x=>mL+(x-x0)/(x1-x0)*pw, Y=y=>mT+(yMaxv-y)/(yMaxv-yMin)*ph;
 
   const defs=el('defs',{});
   defs.innerHTML=
     '<linearGradient id="fillg" x1="0" y1="0" x2="0" y2="1">'+
-      '<stop offset="0" stop-color="'+ret+'" stop-opacity="0.22"/>'+
+      '<stop offset="0" stop-color="'+ret+'" stop-opacity="0.24"/>'+
       '<stop offset="1" stop-color="'+ret+'" stop-opacity="0"/></linearGradient>'+
-    '<filter id="glow" x="-15%" y="-30%" width="130%" height="160%">'+
+    '<filter id="glow" x="-15%" y="-40%" width="130%" height="180%">'+
       '<feGaussianBlur stdDeviation="2.2" result="b"/><feMerge>'+
       '<feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
   svg.appendChild(defs);
 
   /* grid */
   const xs=niceStep(x1-x0);
-  for(let x=Math.ceil(x0/xs)*xs;x<=x1;x+=xs){
+  for(let x=Math.ceil(x0/xs)*xs;x<=x1+0.5;x+=xs){
     svg.appendChild(el('line',{x1:X(x),y1:mT,x2:X(x),y2:mT+ph,stroke:line}));
     const t=el('text',{x:X(x),y:H-16,'text-anchor':'middle',fill:dim,'font-size':11,'font-family':'inherit'});
     t.textContent=x;svg.appendChild(t);
   }
   const ys=niceStep(yMaxv-yMin);
   for(let y=0;y>yMin;y-=ys){
-    svg.appendChild(el('line',{x1:mL,y1:Y(y),x2:mL+pw,y2:Y(y),stroke:y===0?dim:line,'stroke-dasharray':y===0?'':'2 4'}));
-    const t=el('text',{x:mL-8,y:Y(y)+4,'text-anchor':'end',fill:y===0?css('--text'):dim,'font-size':11,'font-family':'inherit'});
-    t.textContent=y===0?'0':y+'"';svg.appendChild(t);
+    svg.appendChild(el('line',{x1:mL,y1:Y(y),x2:mL+pw,y2:Y(y),stroke:line,'stroke-dasharray':'2 4'}));
+    const t=el('text',{x:mL-8,y:Y(y)+4,'text-anchor':'end',fill:dim,'font-size':11,'font-family':'inherit'});
+    t.textContent=y+'"';svg.appendChild(t);
   }
   const cap=el('text',{x:mL+pw/2,y:H-1,fill:dim,'font-size':10,'letter-spacing':'2','text-anchor':'middle','font-family':'inherit'});
   cap.textContent='YARDS';svg.appendChild(cap);
 
-  const yd=Math.min(Math.max(S.yd,x0),Math.min(x1,sel.reached));
-  const step=Math.max(2,Math.round((x1-x0)/240));
+  const step=Math.max(1,Math.round(x1/240));
   const seg=(tr,a,b)=>{let d='';for(let x=a;x<=b;x+=step)d+=(d?'L':'M')+X(x).toFixed(1)+' '+Y(tr.drop[x]).toFixed(1)+' ';
     d+='L'+X(b).toFixed(1)+' '+Y(tr.drop[b]).toFixed(1);return d;};
 
-  /* shaded area under selected trajectory */
-  const limSel=Math.min(x1,sel.reached);
-  let area='';for(let x=x0;x<=limSel;x+=step)area+=(area?'L':'M')+X(x).toFixed(1)+' '+Y(sel.drop[x]).toFixed(1)+' ';
-  area+='L'+X(limSel).toFixed(1)+' '+(mT+ph)+' L'+X(x0).toFixed(1)+' '+(mT+ph)+' Z';
+  /* shaded area under the trajectory */
+  let area='';for(let x=x0;x<=x1;x+=step)area+=(area?'L':'M')+X(x).toFixed(1)+' '+Y(sel.drop[x]).toFixed(1)+' ';
+  area+='L'+X(x1).toFixed(1)+' '+(mT+ph)+' L'+X(x0).toFixed(1)+' '+(mT+ph)+' Z';
   svg.appendChild(el('path',{d:area,fill:'url(#fillg)',stroke:'none'}));
 
-  /* line of sight (aim line) */
-  svg.appendChild(el('line',{x1:mL,y1:Y(0),x2:mL+pw,y2:Y(0),stroke:ret,opacity:.28,'stroke-width':1,'stroke-dasharray':'1 5'}));
+  /* line of sight */
+  svg.appendChild(el('line',{x1:mL,y1:Y(0),x2:mL+pw,y2:Y(0),stroke:ret,opacity:.30,'stroke-width':1,'stroke-dasharray':'1 5'}));
   const los=el('text',{x:mL+pw-2,y:Y(0)-5,'text-anchor':'end',fill:ret,opacity:.5,'font-size':9,'letter-spacing':'1.5','font-family':'inherit'});
   los.textContent='LINE OF SIGHT';svg.appendChild(los);
 
@@ -986,20 +990,21 @@ function drawChart(){
   others.forEach((o,i)=>{const lim=Math.min(x1,o.tr.reached);
     svg.appendChild(el('path',{d:seg(o.tr,x0,lim),fill:'none',stroke:ghosts[i%3],'stroke-width':1.4,'stroke-dasharray':'4 4',opacity:.7}));});
 
-  /* selected: beyond current range dim, flown portion bright + glow */
-  if(limSel>yd)svg.appendChild(el('path',{d:seg(sel,yd,limSel),fill:'none',stroke:ret,'stroke-width':2,opacity:.3,'stroke-linecap':'round'}));
-  svg.appendChild(el('path',{d:seg(sel,x0,yd),fill:'none',stroke:ret,'stroke-width':2.8,'stroke-linecap':'round',filter:'url(#glow)'}));
+  /* selected trajectory — bright, glowing */
+  svg.appendChild(el('path',{d:seg(sel,x0,x1),fill:'none',stroke:ret,'stroke-width':2.8,'stroke-linecap':'round',filter:'url(#glow)'}));
 
-  /* shooter standing at the firing line (bottom-left) */
-  svg.appendChild(shooter(mL+26,mT+ph));
+  /* shooter at the firing point, barrel on the line of sight, aiming higher with distance */
+  const comeup=-sel.drop[x1]/(x1/100*1.0472);
+  const tilt=Math.min(26,Math.max(0,comeup*0.7));
+  svg.appendChild(shooter(mL+34,Y(0),tilt));
 
-  /* range line + bullseye target at current distance */
-  const my=sel.drop[yd], tx=X(yd), ty=Y(my);
+  /* bullseye target at the selected distance (right edge) */
+  const my=sel.drop[x1], tx=X(x1), ty=Y(my);
   svg.appendChild(el('line',{x1:tx,y1:ty,x2:tx,y2:mT+ph,stroke:ret,'stroke-width':1,opacity:.35,'stroke-dasharray':'3 3'}));
   [[7.5,ret],[4.7,bg],[2,ret]].forEach(([r,f])=>svg.appendChild(el('circle',{cx:tx,cy:ty,r:r,fill:f,stroke:ret,'stroke-width':1.4})));
-  const lx=Math.min(Math.max(tx,mL+38),mL+pw-38), lyy=Math.max(ty-15,mT+11);
+  const lx=Math.min(Math.max(tx,mL+40),mL+pw-44), lyy=Math.max(ty-15,mT+11);
   const lbl=el('text',{x:lx,y:lyy,'text-anchor':'middle',fill:ret,'font-size':12.5,'font-weight':'700','font-family':'inherit'});
-  lbl.textContent=(my>=0?'+':'')+my.toFixed(1)+'" @ '+yd+'yd';svg.appendChild(lbl);
+  lbl.textContent=(my>=0?'+':'')+my.toFixed(1)+'" @ '+D+'yd';svg.appendChild(lbl);
 
   $('chTitle').textContent=p.name.split('—')[0].trim()+' (solid)';
   $('legend').innerHTML='<span><i style="background:'+ret+'"></i>'+p.name.split('—')[0].trim()+'</span>'+
