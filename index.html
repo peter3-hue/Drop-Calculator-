@@ -905,30 +905,30 @@ const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim
 const niceStep=r=>{const raw=r/6,p=Math.pow(10,Math.floor(Math.log10(raw)));
   for(const m of[1,2,2.5,5,10])if(raw<=m*p)return m*p; return 10*p;};
 
-/* marksman; muzzle anchored at (mx,my) = start of the yellow line, barrel along angle `angDeg` */
-function shooter(mx,my,angDeg){
-  const C='#d7dde3', steel='#aab2ba', Lm=42, a=angDeg*Math.PI/180;
-  const tx=mx-Lm*Math.cos(a), ty=my-Lm*Math.sin(a);            /* shoulder, so muzzle lands on (mx,my) */
-  const g=el('g',{transform:'translate('+tx.toFixed(1)+','+ty.toFixed(1)+')',
-    fill:'none',stroke:C,'stroke-width':5,'stroke-linecap':'round','stroke-linejoin':'round'});
+/* true-to-scale marksman. muzzle anchored at (mx,my); figure is `htp` px tall (= 6 ft on the y-axis) */
+function shooter(mx,my,htp,angDeg){
+  const C='#d7dde3', steel='#aab2ba', a=angDeg*Math.PI/180, bl=0.50*htp;
+  const sx=mx-bl*Math.cos(a), sy=my-bl*Math.sin(a);            /* shoulder, so muzzle lands on (mx,my) */
+  const hipY=sy+0.34*htp, footY=sy+0.78*htp, headY=sy-0.13*htp;
+  const lw=Math.min(0.055*htp,7).toFixed(1), tw=Math.min(0.085*htp,11).toFixed(1),
+        hr=Math.min(0.062*htp,9).toFixed(1), rw=Math.min(0.05*htp,5).toFixed(1);
+  const g=el('g',{fill:'none',stroke:C,'stroke-linecap':'round','stroke-linejoin':'round'});
   g.innerHTML=
-    '<circle cx="-2" cy="-19" r="6.2" fill="'+C+'" stroke="none"/>'+ /* head */
-    '<path d="M-2 -13 L0 -1"/>'+                                    /* neck */
-    '<path d="M0 -1 L2 25" stroke-width="9"/>'+                     /* torso */
-    '<path d="M2 23 L-9 51"/>'+                                     /* back leg */
-    '<path d="M2 23 L13 51"/>'+                                     /* front leg */
-    '<g transform="rotate('+angDeg.toFixed(1)+' 0 0)">'+           /* rifle + arms, aligned to the bullet line */
-      '<path d="M-13 0 L'+Lm+' 0" stroke="'+steel+'" stroke-width="4"/>'+ /* barrel to muzzle */
-      '<rect x="13" y="-4.6" width="11" height="3.8" rx="1.2" fill="'+steel+'" stroke="none"/>'+ /* scope */
-      '<path d="M2 5 L22 1"/>'+                                     /* front arm to fore-grip */
-      '<path d="M0 5 L7 1"/>'+                                      /* rear arm */
+    '<path d="M'+sx.toFixed(1)+' '+hipY.toFixed(1)+' L'+(sx-0.13*htp).toFixed(1)+' '+footY.toFixed(1)+'" stroke-width="'+lw+'"/>'+
+    '<path d="M'+sx.toFixed(1)+' '+hipY.toFixed(1)+' L'+(sx+0.15*htp).toFixed(1)+' '+footY.toFixed(1)+'" stroke-width="'+lw+'"/>'+
+    '<path d="M'+sx.toFixed(1)+' '+hipY.toFixed(1)+' L'+sx.toFixed(1)+' '+sy.toFixed(1)+'" stroke-width="'+tw+'"/>'+
+    '<circle cx="'+sx.toFixed(1)+'" cy="'+headY.toFixed(1)+'" r="'+hr+'" fill="'+C+'" stroke="none"/>'+
+    '<g transform="rotate('+angDeg.toFixed(1)+' '+sx.toFixed(1)+' '+sy.toFixed(1)+')">'+
+      '<path d="M'+(sx-0.16*htp).toFixed(1)+' '+sy.toFixed(1)+' L'+(sx+bl).toFixed(1)+' '+sy.toFixed(1)+'" stroke="'+steel+'" stroke-width="'+rw+'"/>'+
+      '<rect x="'+(sx+0.14*htp).toFixed(1)+'" y="'+(sy-0.055*htp).toFixed(1)+'" width="'+(0.15*htp).toFixed(1)+'" height="'+(0.04*htp).toFixed(1)+'" rx="1.2" fill="'+steel+'" stroke="none"/>'+
+      '<path d="M'+sx.toFixed(1)+' '+(sy+0.05*htp).toFixed(1)+' L'+(sx+0.30*htp).toFixed(1)+' '+sy.toFixed(1)+'" stroke-width="'+lw+'"/>'+
     '</g>';
-  return g;
+  return {g, footX:sx, footY};
 }
 
 function drawChart(){
   const svg=$('chart');svg.innerHTML='';
-  const W=840,H=360,mL=52,mR=22,mT=30,mB=44,LI=86,pw=W-mL-mR,ph=H-mT-mB;
+  const W=840,H=360,mL=50,mR=24,mT=20,mB=44,pw=W-mL-mR,ph=H-mT-mB;
   const c=cal(), p=params();
   const sel=getTraj(S.load,p,S.zero);
   const others=Object.keys(c.loads).filter(k=>S.load==='custom'||k!==S.load)
@@ -938,15 +938,19 @@ function drawChart(){
   /* graph spans 0 -> selected distance and rescales to it */
   const D=Math.min(Math.max(S.yd,10), Math.min(c.maxYd, sel.reached));
   const x0=0, x1=Math.max(D,20);
-  let dmin=0, dmax=0;
-  for(let x=x0;x<=x1;x++){const v=sel.drop[x]; if(v<dmin)dmin=v; if(v>dmax)dmax=v;}
-  others.forEach(o=>{const lim=Math.min(x1,o.tr.reached);for(let x=x0;x<=lim;x++){const v=o.tr.drop[x];if(v<dmin)dmin=v;if(v>dmax)dmax=v;}});
-  dmin*=1.10; if(dmin>-1)dmin=-1;
-  const h0=44/ph;                                              /* headroom above sight line for the shooter's head */
-  const yMaxv=Math.max(dmax*1.15, h0*(-dmin)/(1-h0), 0.4), yMin=dmin;
-  /* left inset (LI) leaves room for the shooter; the plot/data area starts at mL+LI */
+  let dminIn=0, dmaxIn=0;
+  for(let x=x0;x<=x1;x++){const v=sel.drop[x]; if(v<dminIn)dminIn=v; if(v>dmaxIn)dmaxIn=v;}
+  others.forEach(o=>{const lim=Math.min(x1,o.tr.reached);for(let x=x0;x<=lim;x++){const v=o.tr.drop[x];if(v<dminIn)dminIn=v;if(v>dmaxIn)dmaxIn=v;}});
+
+  /* y-axis in FEET, scaled so a 6 ft shooter is an honest yardstick (always shows him + the drop) */
+  const HUMAN_FT=6;
+  const dminFt=dminIn/12*1.08, dmaxFt=dmaxIn/12;
+  const yMaxFt=Math.max(1.6, dmaxFt+0.4);                       /* headroom above sight line for his head */
+  const yMinFt=Math.min(-6.9, dminFt);                         /* always show feet+ground, deeper if drop exceeds */
+  const rangeFt=yMaxFt-yMinFt, pxPerFt=ph/rangeFt, htp=HUMAN_FT*pxPerFt;
+  const LI=Math.max(52,Math.min(pw*0.5, 0.66*htp+16));         /* inset reserves room for the (scaling) shooter */
   const px0=mL+LI, pwi=pw-LI;
-  const X=x=>px0+(x-x0)/(x1-x0)*pwi, Y=y=>mT+(yMaxv-y)/(yMaxv-yMin)*ph;
+  const X=x=>px0+(x-x0)/(x1-x0)*pwi, Yf=ft=>mT+(yMaxFt-ft)/rangeFt*ph, Yi=inch=>Yf(inch/12);
 
   const defs=el('defs',{});
   defs.innerHTML=
@@ -958,34 +962,38 @@ function drawChart(){
       '<feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
   svg.appendChild(defs);
 
-  /* grid (data area only) */
+  /* vertical (yards) grid in the data area */
   const xs=niceStep(x1-x0);
   for(let x=Math.ceil(x0/xs)*xs;x<=x1+0.5;x+=xs){
     svg.appendChild(el('line',{x1:X(x),y1:mT,x2:X(x),y2:mT+ph,stroke:line}));
     const t=el('text',{x:X(x),y:H-16,'text-anchor':'middle',fill:dim,'font-size':11,'font-family':'inherit'});
     t.textContent=x;svg.appendChild(t);
   }
-  const ys=niceStep(yMaxv-yMin);
-  for(let y=0;y>yMin;y-=ys){
-    svg.appendChild(el('line',{x1:px0,y1:Y(y),x2:mL+pw,y2:Y(y),stroke:line,'stroke-dasharray':'2 4'}));
-    const t=el('text',{x:px0-8,y:Y(y)+4,'text-anchor':'end',fill:dim,'font-size':11,'font-family':'inherit'});
-    t.textContent=y+'"';svg.appendChild(t);
+  /* horizontal grid in FEET (left); exact inches on the right */
+  const sft=niceStep(rangeFt);
+  for(let ft=Math.floor(yMaxFt/sft)*sft; ft>=yMinFt-0.001; ft-=sft){
+    const yy=Yf(ft), z=Math.abs(ft)<1e-6;
+    svg.appendChild(el('line',{x1:mL,y1:yy,x2:mL+pw,y2:yy,stroke:z?dim:line,'stroke-dasharray':z?'':'2 4',opacity:z?.5:1}));
+    const tl=el('text',{x:mL-5,y:yy+4,'text-anchor':'end',fill:dim,'font-size':11,'font-family':'inherit'});
+    tl.textContent=z?'0':(ft+"′");svg.appendChild(tl);
+    if(!z){const tr2=el('text',{x:mL+pw+4,y:yy+4,'text-anchor':'start',fill:dim,opacity:.7,'font-size':9,'font-family':'inherit'});
+      tr2.textContent=Math.round(ft*12)+'"';svg.appendChild(tr2);}
   }
   const cap=el('text',{x:px0+pwi/2,y:H-1,fill:dim,'font-size':10,'letter-spacing':'2','text-anchor':'middle','font-family':'inherit'});
   cap.textContent='YARDS';svg.appendChild(cap);
 
   const step=Math.max(1,Math.round(x1/240));
-  const seg=(tr,a,b)=>{let d='';for(let x=a;x<=b;x+=step)d+=(d?'L':'M')+X(x).toFixed(1)+' '+Y(tr.drop[x]).toFixed(1)+' ';
-    d+='L'+X(b).toFixed(1)+' '+Y(tr.drop[b]).toFixed(1);return d;};
+  const seg=(tr,a,b)=>{let d='';for(let x=a;x<=b;x+=step)d+=(d?'L':'M')+X(x).toFixed(1)+' '+Yi(tr.drop[x]).toFixed(1)+' ';
+    d+='L'+X(b).toFixed(1)+' '+Yi(tr.drop[b]).toFixed(1);return d;};
 
   /* shaded area under the trajectory */
-  let area='';for(let x=x0;x<=x1;x+=step)area+=(area?'L':'M')+X(x).toFixed(1)+' '+Y(sel.drop[x]).toFixed(1)+' ';
+  let area='';for(let x=x0;x<=x1;x+=step)area+=(area?'L':'M')+X(x).toFixed(1)+' '+Yi(sel.drop[x]).toFixed(1)+' ';
   area+='L'+X(x1).toFixed(1)+' '+(mT+ph)+' L'+X(x0).toFixed(1)+' '+(mT+ph)+' Z';
   svg.appendChild(el('path',{d:area,fill:'url(#fillg)',stroke:'none'}));
 
   /* line of sight -> the target */
-  svg.appendChild(el('line',{x1:px0,y1:Y(0),x2:mL+pw,y2:Y(0),stroke:ret,opacity:.30,'stroke-width':1,'stroke-dasharray':'1 5'}));
-  const los=el('text',{x:mL+pw-2,y:Y(0)-6,'text-anchor':'end',fill:ret,opacity:.5,'font-size':9,'letter-spacing':'1.5','font-family':'inherit'});
+  svg.appendChild(el('line',{x1:px0,y1:Yi(0),x2:mL+pw,y2:Yi(0),stroke:ret,opacity:.30,'stroke-width':1,'stroke-dasharray':'1 5'}));
+  const los=el('text',{x:mL+pw-2,y:Yi(0)-6,'text-anchor':'end',fill:ret,opacity:.5,'font-size':9,'letter-spacing':'1.5','font-family':'inherit'});
   los.textContent='LINE OF SIGHT';svg.appendChild(los);
 
   /* other loads (ghost dashed) */
@@ -996,18 +1004,21 @@ function drawChart(){
   /* selected trajectory — the bullet, bright & glowing, fired from the muzzle */
   svg.appendChild(el('path',{d:seg(sel,x0,x1),fill:'none',stroke:ret,'stroke-width':2.8,'stroke-linecap':'round',filter:'url(#glow)'}));
 
-  /* shooter: muzzle on the start of the yellow line, barrel aligned to it */
+  /* shooter: muzzle on the start of the yellow line, drawn to real (6 ft) scale */
   const k=Math.max(1,Math.round(x1*0.05));
-  let angDeg=Math.atan2(Y(sel.drop[k])-Y(sel.drop[x0]), X(k)-X(x0))*180/Math.PI;
+  let angDeg=Math.atan2(Yi(sel.drop[k])-Yi(sel.drop[x0]), X(k)-X(x0))*180/Math.PI;
   angDeg=Math.max(-20,Math.min(20,angDeg));
-  svg.appendChild(shooter(X(x0),Y(sel.drop[x0]),angDeg));
+  const sh=shooter(X(x0),Yi(sel.drop[x0]),htp,angDeg);
+  /* little patch of ground under his feet */
+  svg.appendChild(el('line',{x1:(sh.footX-0.5*htp),y1:sh.footY,x2:(sh.footX+0.7*htp),y2:sh.footY,stroke:dim,opacity:.45,'stroke-width':1.5}));
+  svg.appendChild(sh.g);
 
-  /* target sits ON the line of sight; bullet drops below it */
-  const my=sel.drop[x1], tx=X(x1), tyL=Y(0), tyB=Y(my);
+  /* target sits ON the line of sight; bullet drops below it; exact drop in inches on the right */
+  const my=sel.drop[x1], tx=X(x1), tyL=Yi(0), tyB=Yi(my);
   svg.appendChild(el('line',{x1:tx,y1:tyL,x2:tx,y2:tyB,stroke:ret,'stroke-width':1.2,opacity:.5,'stroke-dasharray':'3 3'}));
-  svg.appendChild(el('circle',{cx:tx,cy:tyB,r:3.6,fill:ret,stroke:'none'}));        /* bullet impact */
-  [[7.5,ret],[4.7,bg],[2,ret]].forEach(([r,f])=>svg.appendChild(el('circle',{cx:tx,cy:tyL,r:r,fill:f,stroke:ret,'stroke-width':1.4}))); /* target on LOS */
-  const lyy=Math.min(Math.max(tyB+(my<0?16:-9),mT+11),mT+ph-4);
+  svg.appendChild(el('circle',{cx:tx,cy:tyB,r:3.6,fill:ret,stroke:'none'}));
+  [[7.5,ret],[4.7,bg],[2,ret]].forEach(([r,f])=>svg.appendChild(el('circle',{cx:tx,cy:tyL,r:r,fill:f,stroke:ret,'stroke-width':1.4})));
+  const lyy=Math.min(Math.max(tyB+(my<0?16:-9),mT+12),mT+ph-4);
   const lbl=el('text',{x:tx-6,y:lyy,'text-anchor':'end',fill:ret,'font-size':12.5,'font-weight':'700','font-family':'inherit'});
   lbl.textContent=(my>=0?'+':'')+my.toFixed(1)+'" @ '+D+'yd';svg.appendChild(lbl);
 
