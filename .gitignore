@@ -7,3 +7,16 @@ Thumbs.db
 
 # local backup of the original single-file app (kept locally, not published)
 ORIGINAL_BACKUP.html
+
+# Capacitor / native build
+node_modules/
+www/
+.gradle/
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/app/release/
+*.apk
+*.aab
+resources/
