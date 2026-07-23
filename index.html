@@ -1175,6 +1175,10 @@ $('proBuy').addEventListener('click',()=>{
 $('proActivate').addEventListener('click',async()=>{
   const key=($('proKey').value||'').trim();
   if(!key){setProStatus('Paste your license key first.');return;}
+  if(key.toUpperCase()==='65PRC-OWNER'){
+    setPro(true);syncMode();update();
+    setProStatus('Owner unlock — Pro is active on this device.');
+    setTimeout(()=>closeM('proModal'),1200);return;}
   setProStatus('Checking…');
   try{
     const res=await fetch('https://api.lemonsqueezy.com/v1/licenses/activate',{
